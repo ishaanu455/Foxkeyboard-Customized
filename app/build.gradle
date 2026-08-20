@@ -71,4 +71,7 @@ dependencies {
     implementation 'androidx.compose.material:material-icons-extended'
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
+    // Used to download & cache the optional Twemoji-style emoji images (CC-BY 4.0 licensed,
+    // NOT Apple's proprietary emoji font/art) shown in Settings > Emoji.
+    implementation 'io.coil-kt:coil:2.6.0'
 }

@@ -290,14 +290,14 @@ private fun EmojiStyleSection() {
                 "Android-compatible emoji fonts (COLR/CBDT format).",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp, bottom = 4.dp)
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp)
         )
         if (customFontImportFailed) {
             Text(
                 text = "Couldn't read that file as a font. Please pick a valid .ttf/.otf file.",
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(horizontal = 16.dp, bottom = 4.dp)
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp)
             )
         }
     }
