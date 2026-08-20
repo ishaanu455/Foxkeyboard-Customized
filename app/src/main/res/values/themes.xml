@@ -23,6 +23,10 @@
         <!-- Special keys -->
         <item name="keySpecial">@color/gboard_key_light</item>
         <item name="keySpecialPressed">@color/gboard_func_pressed_light</item>
+
+        <!-- Clipboard "Clips" card surface -->
+        <item name="clipCard">@color/clip_card_light</item>
+        <item name="clipCardPressed">@color/gboard_func_pressed_light</item>
     </style>
 
     <style name="Theme.fox"
@@ -70,6 +74,10 @@
         <item name="keyNormalPressed">@color/gboard_func_pressed_dark</item>
         <item name="keyFunctionPressed">@color/gboard_func_pressed_dark</item>
         <item name="keyActionPressed">@color/gboard_action_blue_pressed</item>
+
+        <!-- Clipboard "Clips" card surface -->
+        <item name="clipCard">@color/clip_card_dark</item>
+        <item name="clipCardPressed">@color/gboard_func_pressed_dark</item>
     </style>
 
     <style name="NightNoBorder" parent="Night">

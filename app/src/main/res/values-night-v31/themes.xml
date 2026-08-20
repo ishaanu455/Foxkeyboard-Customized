@@ -19,6 +19,10 @@
         <item name="keyFunctionPressed">@android:color/system_neutral2_700</item>
         <item name="keyActionPressed">@android:color/system_accent1_600</item>
         <item name="keyShadowColor">#40000000</item>
+
+        <!-- Clipboard "Clips" card surface -->
+        <item name="clipCard">@color/clip_card_dark</item>
+        <item name="clipCardPressed">@android:color/system_neutral1_700</item>
     </style>
 
     <!-- Dynamic Night No Border -->

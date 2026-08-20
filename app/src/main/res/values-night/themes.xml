@@ -17,6 +17,10 @@
         <item name="keyFunctionPressed">@color/gboard_func_pressed_dark</item>
         <item name="keyActionPressed">@color/gboard_action_blue_pressed</item>
         <item name="keyShadowColor">#40000000</item>
+
+        <!-- Clipboard "Clips" card surface -->
+        <item name="clipCard">@color/clip_card_dark</item>
+        <item name="clipCardPressed">@color/gboard_func_pressed_dark</item>
     </style>
 
     <style name="NightNoBorder" parent="Night">

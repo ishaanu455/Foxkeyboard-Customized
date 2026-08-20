@@ -20,6 +20,7 @@ import androidx.appcompat.content.res.AppCompatResources
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -468,7 +469,6 @@ class KeyboardView(
             binding.btnClipboard.isVisible = clipboardEnabled
 
             binding.clipboardView.root.layoutParams.height = rowHeight * 5
-            binding.clipboardView.clipboardBottomBar.layoutParams.height = rowHeight
 
             clipboardAdapter = ClipboardAdapter(object : ClipboardAdapter.Actions {
                 override fun onClipTap(item: ClipItem) = clickListener.clipboardPasteClick(item.text)
@@ -476,7 +476,10 @@ class KeyboardView(
                 override fun onClipShare(item: ClipItem) = clickListener.clipboardShareClick(item)
                 override fun onClipDelete(item: ClipItem) = clickListener.clipboardDeleteClick(item)
             })
-            binding.clipboardView.clipboardList.layoutManager = LinearLayoutManager(contextThemeWrapper)
+            binding.clipboardView.clipboardList.layoutManager =
+                StaggeredGridLayoutManager(2, StaggeredGridLayoutManager.VERTICAL).apply {
+                    gapStrategy = StaggeredGridLayoutManager.GAP_HANDLING_NONE
+                }
             binding.clipboardView.clipboardList.adapter = clipboardAdapter
 
             binding.clipboardView.clipClearAll.setOnClickListener { clickListener.clipboardClearClick() }
@@ -707,7 +710,6 @@ class KeyboardView(
         binding.emojiView.root.layoutParams.height = newRowHeight * 5
         binding.emojiView.emojiBottomBar.layoutParams.height = newRowHeight
         binding.clipboardView.root.layoutParams.height = newRowHeight * 5
-        binding.clipboardView.clipboardBottomBar.layoutParams.height = newRowHeight
         requestLayout()
     }
 }

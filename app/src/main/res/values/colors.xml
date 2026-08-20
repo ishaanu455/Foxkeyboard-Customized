@@ -34,4 +34,12 @@
     <!-- Misc tokens kept for compatibility -->
     <color name="blue">#3956aa</color>
     <color name="yellow">#dfc540</color>
+
+    <!-- Clipboard "Clips" screen accent (purple circular buttons / pin badge) -->
+    <color name="clip_purple">#7C5CFC</color>
+    <color name="clip_purple_pressed">#6A4CE0</color>
+
+    <!-- Clipboard card surfaces (flat rounded cards, independent of key theming) -->
+    <color name="clip_card_light">#EAEAEA</color>
+    <color name="clip_card_dark">#2E2E2E</color>
 </resources>

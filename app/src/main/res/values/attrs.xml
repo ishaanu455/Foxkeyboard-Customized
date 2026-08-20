@@ -24,6 +24,10 @@
     <attr name="keySpecial" format="color" />
     <attr name="keySpecialPressed" format="color" />
 
+    <!-- Clipboard "Clips" card surface (flat rounded cards in the clipboard panel) -->
+    <attr name="clipCard" format="color" />
+    <attr name="clipCardPressed" format="color" />
+
     <!-- Attribute used by KeyboardButton view -->
     <attr name="isSpecial" format="boolean" />
 
