@@ -81,6 +81,7 @@ class KeyboardView(
     // True while the clipboard history panel is open.
     private var isClipboardPanelOpen = false
     private var closeClipboardPanelFn: (() -> Unit)? = null
+    private var closeEmojiPanelFn: (() -> Unit)? = null
 
     private lateinit var binding: KeyboardLayoutBinding
 
@@ -390,7 +391,10 @@ class KeyboardView(
             binding.emojiView.btnBackspace.setOnTouchListener(backspaceTouchListener)
 
             // Emoji Logic
-            binding.emojiView.root.layoutParams.height = rowHeight * 5
+            // Match the emoji panel height to however many key rows are actually
+            // showing (the number row can be hidden via Settings) instead of a
+            // hardcoded 5 rows, otherwise the panel ends up taller than the keyboard.
+            binding.emojiView.root.layoutParams.height = rowHeight * (if (showNumberRow) 5 else 4)
 
             binding.emojiView.emojiBottomBar.layoutParams.height = rowHeight
 
@@ -469,10 +473,14 @@ class KeyboardView(
 
             binding.emojiView.btnAbc.setOnClickListener { toggleEmojiView(false) }
 
+            this.closeEmojiPanelFn = { toggleEmojiView(false) }
+
             // --- Clipboard panel logic ---
             binding.btnClipboard.isVisible = clipboardEnabled
 
-            binding.clipboardView.root.layoutParams.height = rowHeight * 5
+            // Same row-count fix as the emoji panel above, so the clipboard panel
+            // opens at the same height as the normal keyboard, not taller.
+            binding.clipboardView.root.layoutParams.height = rowHeight * (if (showNumberRow) 5 else 4)
 
             clipboardAdapter = ClipboardAdapter(object : ClipboardAdapter.Actions {
                 override fun onClipTap(item: ClipItem) = clickListener.clipboardPasteClick(item.text)
@@ -485,6 +493,10 @@ class KeyboardView(
                     gapStrategy = StaggeredGridLayoutManager.GAP_HANDLING_NONE
                 }
             binding.clipboardView.clipboardList.adapter = clipboardAdapter
+
+            // Tapping empty space in the clipboard list (not on any clip card) collapses
+            // whichever clip currently has its pin/share/delete row expanded.
+            binding.clipboardView.clipboardList.setOnClickListener { clipboardAdapter.collapse() }
 
             // Clear-all now lives as a purple circular icon in the keyboard's top_bar
             // (next to btn_clipboard) instead of a second header row inside the panel,
@@ -503,6 +515,10 @@ class KeyboardView(
                 if (visible) isEmojiPanelOpen = false
                 updateRecentEmojiRowVisibility()
                 if (visible) refreshClipboardList()
+                // Don't let a clip's expanded pin/share/delete row survive a close - the
+                // next time the panel opens (even for a different field/session) it should
+                // start collapsed rather than reappearing already expanded.
+                if (!visible) clipboardAdapter.collapse()
             }
 
             binding.btnClipboard.setOnClickListener { toggleClipboardView(!isClipboardPanelOpen) }
@@ -677,7 +693,12 @@ class KeyboardView(
 
     /** Closes the clipboard panel (e.g. right after a paste, or when the input field changes). */
     fun closeClipboardPanel() {
-        closeClipboardPanelFn?.invoke()
+        if (isClipboardPanelOpen) closeClipboardPanelFn?.invoke()
+    }
+
+    /** Closes the emoji panel (e.g. when the input field changes or the keyboard is reopened). */
+    fun closeEmojiPanel() {
+        if (isEmojiPanelOpen) closeEmojiPanelFn?.invoke()
     }
 
     /** Hot-toggle from Settings without recreating the whole KeyboardView. */
@@ -704,6 +725,13 @@ class KeyboardView(
     fun setShowNumberRow(enabled: Boolean) {
         showNumberRow = enabled
         binding.keyRow1.visibility = if (enabled) View.VISIBLE else View.GONE
+        // Keep the emoji/clipboard panels the same height as the keyboard whenever
+        // the number row is toggled, using whatever row height is currently applied.
+        val rh = binding.keyRow2.layoutParams.height
+        val rows = if (enabled) 5 else 4
+        binding.emojiView.root.layoutParams.height = rh * rows
+        binding.clipboardView.root.layoutParams.height = rh * rows
+        requestLayout()
     }
 
     /** Hot-update all row heights (called when height slider changes without keyboard recreate). */
@@ -714,9 +742,9 @@ class KeyboardView(
         binding.keyRow3.layoutParams.height = newRowHeight
         binding.keyRow4.layoutParams.height = newRowHeight
         binding.keyRow5.layoutParams.height = newRowHeight
-        binding.emojiView.root.layoutParams.height = newRowHeight * 5
+        binding.emojiView.root.layoutParams.height = newRowHeight * (if (showNumberRow) 5 else 4)
         binding.emojiView.emojiBottomBar.layoutParams.height = newRowHeight
-        binding.clipboardView.root.layoutParams.height = newRowHeight * 5
+        binding.clipboardView.root.layoutParams.height = newRowHeight * (if (showNumberRow) 5 else 4)
         requestLayout()
     }
 }

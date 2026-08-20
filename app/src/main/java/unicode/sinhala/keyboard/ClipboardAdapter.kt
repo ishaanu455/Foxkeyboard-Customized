@@ -101,13 +101,35 @@ class ClipboardAdapter(
 
         holder.itemView.setOnClickListener { actions.onClipTap(item) }
         holder.itemView.setOnLongClickListener {
+            val previousExpandedId = expandedId
             expandedId = if (expandedId == item.id) null else item.id
-            notifyDataSetChanged()
+
+            // Re-bind only the rows whose expanded state actually changed, instead of a
+            // full notifyDataSetChanged(). With StaggeredGridLayoutManager, a full rebind
+            // doesn't reliably reflow item heights, which is why toggling used to look like
+            // it "stuck" (long-pressing again didn't visibly collapse the actions row).
+            if (previousExpandedId != null) {
+                val oldPos = rows.indexOfFirst { it is Row.Clip && it.item.id == previousExpandedId }
+                if (oldPos >= 0) notifyItemChanged(oldPos)
+            }
+            val newPos = rows.indexOfFirst { it is Row.Clip && it.item.id == expandedId }
+            if (newPos >= 0) notifyItemChanged(newPos)
             true
         }
         holder.pin.setOnClickListener { actions.onClipPin(item) }
         holder.share.setOnClickListener { actions.onClipShare(item) }
         holder.delete.setOnClickListener { actions.onClipDelete(item) }
+    }
+
+    /** Collapses whichever clip's pin/share/delete row is currently expanded, if any.
+     *  Called when the clipboard panel closes and when the user taps empty space in
+     *  the list, so an expanded row never lingers across opens or "leaks" onto a tap
+     *  that lands away from it. */
+    fun collapse() {
+        val id = expandedId ?: return
+        expandedId = null
+        val pos = rows.indexOfFirst { it is Row.Clip && it.item.id == id }
+        if (pos >= 0) notifyItemChanged(pos)
     }
 
     override fun getItemCount(): Int = rows.size

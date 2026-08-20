@@ -294,6 +294,11 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
          lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
          Log.d("IME", "onStartInputView called restarting=$restarting info=")
 
+         // Reset to the default key screen (lowercase, no clipboard/emoji panel) every
+         // time the keyboard is (re)shown - whether it was fully closed and reopened, or
+         // the user just switched focus to a different field while it stayed up.
+         resetKeyboardState()
+
          val desired = Prefs.getSelectedLayout(this)
          if (!::keyboardView.isInitialized) {
 
@@ -341,11 +346,6 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
             updateKeyboard()
         } catch (t: Throwable) {
             Log.e("IME", "updateKeyboard failed in onStartInputView", t)
-        }
-
-
-        if (restarting || info == null || currentInputConnection == null) {
-            resetKeyboardState()
         }
     }
 
@@ -399,12 +399,31 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
                 requestSuggestionsForToken(token)
             }
         } catch (_: Throwable) {}
+
+        // The cursor/selection can only change like this while a panel is open if the
+        // user tapped directly in the app's text field (our own key clicks don't move
+        // the cursor via touch), so bring the normal keyboard back automatically.
+        // Both calls are no-ops if that panel isn't open.
+        if (::keyboardView.isInitialized) {
+            keyboardView.closeClipboardPanel()
+            keyboardView.closeEmojiPanel()
+        }
     }
 
 
     private fun resetKeyboardState() {
         mComposing = ""
         tComposing = ""
+        // Always come back to the plain key screen in lowercase - whether the keyboard
+        // is being (re)shown after being fully closed, or the user has just switched to
+        // a different text field - regardless of which panel (clipboard/emoji) or shift
+        // state it was left in, and regardless of language layout.
+        caps = false
+        shift = false
+        if (::keyboardView.isInitialized) {
+            keyboardView.closeClipboardPanel()
+            keyboardView.closeEmojiPanel()
+        }
     }
 
     override fun onEvaluateFullscreenMode(): Boolean {
