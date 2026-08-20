@@ -456,7 +456,7 @@ val helpMapSinglish: List<Pair<String, String>> = listOf(
     CHAR.ALPAPRAANA_DAYANNA.text + CHAR.SIGN_AL_LAKUNA.text to "dh / q",
     CHAR.MAHAAPRAANA_DAYANNA.text + CHAR.SIGN_AL_LAKUNA.text to "dhh / Dh / qh / Q",
     CHAR.DANTAJA_NAYANNA.text + CHAR.SIGN_AL_LAKUNA.text to "n",
-    CHAR.SANYAKA_DAYANNA.text + CHAR.SIGN_AL_LAKUNA.text to "zdh",
+    CHAR.SANYAKA_DAYANNA.text + CHAR.SIGN_AL_LAKUNA.text to "zdh / zq",
     CHAR.ALPAPRAANA_PAYANNA.text + CHAR.SIGN_AL_LAKUNA.text to "p",
     CHAR.MAHAAPRAANA_PAYANNA.text + CHAR.SIGN_AL_LAKUNA.text to "ph / P",
     CHAR.ALPAPRAANA_BAYANNA.text + CHAR.SIGN_AL_LAKUNA.text to "b",
