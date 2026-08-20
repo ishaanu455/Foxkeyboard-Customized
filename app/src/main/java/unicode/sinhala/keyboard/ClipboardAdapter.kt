@@ -36,6 +36,11 @@ class ClipboardAdapter(
     /** Tracks which clip currently has its action row expanded (long-press), by clip id. */
     private var expandedId: Long? = null
 
+    /** True while the multi-select delete flow (entered via the top-bar trash icon) is
+     *  active - taps toggle a clip's selected state instead of pasting it. */
+    private var selectionMode = false
+    private val selectedIds = mutableSetOf<Long>()
+
     companion object {
         private const val TYPE_HEADER = 0
         private const val TYPE_CLIP = 1
@@ -57,6 +62,7 @@ class ClipboardAdapter(
         }
 
         if (rows.none { it is Row.Clip && it.item.id == expandedId }) expandedId = null
+        selectedIds.retainAll(newItems.map { it.id }.toSet())
         notifyDataSetChanged()
     }
 
@@ -95,26 +101,43 @@ class ClipboardAdapter(
 
     private fun bindClip(holder: ClipViewHolder, item: ClipItem) {
         holder.text.text = item.text
-        holder.actions.isVisible = item.id == expandedId
-        holder.pinBadge.isVisible = item.pinned
+        // The pin/share/delete row and the selection checkmark are mutually exclusive -
+        // only one indicator makes sense on a card at a time.
+        holder.actions.isVisible = !selectionMode && item.id == expandedId
+        holder.pinBadge.isVisible = item.pinned && !selectionMode
         holder.pin.alpha = if (item.pinned) 1f else 0.5f
+        holder.selectCheck.isVisible = selectionMode && item.id in selectedIds
 
-        holder.itemView.setOnClickListener { actions.onClipTap(item) }
-        holder.itemView.setOnLongClickListener {
-            val previousExpandedId = expandedId
-            expandedId = if (expandedId == item.id) null else item.id
-
-            // Re-bind only the rows whose expanded state actually changed, instead of a
-            // full notifyDataSetChanged(). With StaggeredGridLayoutManager, a full rebind
-            // doesn't reliably reflow item heights, which is why toggling used to look like
-            // it "stuck" (long-pressing again didn't visibly collapse the actions row).
-            if (previousExpandedId != null) {
-                val oldPos = rows.indexOfFirst { it is Row.Clip && it.item.id == previousExpandedId }
-                if (oldPos >= 0) notifyItemChanged(oldPos)
+        if (selectionMode) {
+            // While selecting, a tap toggles the clip instead of pasting it, and
+            // long-press (which would normally expand pin/share/delete) is disabled
+            // so it can't be confused with selection.
+            holder.itemView.setOnClickListener {
+                val pos = holder.bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) {
+                    if (!selectedIds.remove(item.id)) selectedIds.add(item.id)
+                    notifyItemChanged(pos)
+                }
             }
-            val newPos = rows.indexOfFirst { it is Row.Clip && it.item.id == expandedId }
-            if (newPos >= 0) notifyItemChanged(newPos)
-            true
+            holder.itemView.setOnLongClickListener { true }
+        } else {
+            holder.itemView.setOnClickListener { actions.onClipTap(item) }
+            holder.itemView.setOnLongClickListener {
+                val previousExpandedId = expandedId
+                expandedId = if (expandedId == item.id) null else item.id
+
+                // Re-bind only the rows whose expanded state actually changed, instead of a
+                // full notifyDataSetChanged(). With StaggeredGridLayoutManager, a full rebind
+                // doesn't reliably reflow item heights, which is why toggling used to look like
+                // it "stuck" (long-pressing again didn't visibly collapse the actions row).
+                if (previousExpandedId != null) {
+                    val oldPos = rows.indexOfFirst { it is Row.Clip && it.item.id == previousExpandedId }
+                    if (oldPos >= 0) notifyItemChanged(oldPos)
+                }
+                val newPos = rows.indexOfFirst { it is Row.Clip && it.item.id == expandedId }
+                if (newPos >= 0) notifyItemChanged(newPos)
+                true
+            }
         }
         holder.pin.setOnClickListener { actions.onClipPin(item) }
         holder.share.setOnClickListener { actions.onClipShare(item) }
@@ -132,6 +155,31 @@ class ClipboardAdapter(
         if (pos >= 0) notifyItemChanged(pos)
     }
 
+    fun isSelectionMode(): Boolean = selectionMode
+
+    fun hasSelection(): Boolean = selectedIds.isNotEmpty()
+
+    /** The clip ids currently checked for deletion. */
+    fun selectedIds(): Set<Long> = selectedIds.toSet()
+
+    /** Enters the multi-select delete flow - lets the user pick which clips (pinned
+     *  or not) to remove, instead of the old single tap wiping every unpinned clip
+     *  with no way to double-check what's being deleted. */
+    fun enterSelectionMode() {
+        if (selectionMode) return
+        selectionMode = true
+        collapse()
+        notifyDataSetChanged()
+    }
+
+    /** Leaves selection mode, whether triggered by a completed delete or a cancel. */
+    fun exitSelectionMode() {
+        if (!selectionMode && selectedIds.isEmpty()) return
+        selectionMode = false
+        selectedIds.clear()
+        notifyDataSetChanged()
+    }
+
     override fun getItemCount(): Int = rows.size
 
     class HeaderViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -145,5 +193,6 @@ class ClipboardAdapter(
         val share: ImageView = itemView.findViewById(R.id.clip_share)
         val delete: ImageView = itemView.findViewById(R.id.clip_delete)
         val pinBadge: ImageView = itemView.findViewById(R.id.clip_pin_badge)
+        val selectCheck: ImageView = itemView.findViewById(R.id.clip_select_check)
     }
 }

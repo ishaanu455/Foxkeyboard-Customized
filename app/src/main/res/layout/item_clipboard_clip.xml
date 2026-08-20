@@ -83,4 +83,20 @@
         android:visibility="gone"
         android:contentDescription="@string/clip_pin" />
 
+    <!-- Selection checkmark badge, shown only while multi-select delete mode is active
+         and this clip is currently selected. -->
+    <ImageView
+        android:id="@+id/clip_select_check"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_gravity="top|start"
+        android:layout_margin="6dp"
+        android:padding="3dp"
+        android:background="@drawable/bg_clip_purple_circle"
+        android:src="@drawable/ic_check"
+        android:tint="@android:color/white"
+        android:scaleType="centerInside"
+        android:visibility="gone"
+        android:contentDescription="@string/clip_selected" />
+
 </FrameLayout>

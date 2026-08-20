@@ -60,7 +60,7 @@ class KeyboardView(
         fun clipboardPinClick(item: ClipItem)
         fun clipboardShareClick(item: ClipItem)
         fun clipboardDeleteClick(item: ClipItem)
-        fun clipboardClearClick()
+        fun clipboardDeleteSelectedClick(ids: Set<Long>)
     }
 
     interface SwipeListener {
@@ -501,7 +501,21 @@ class KeyboardView(
             // Clear-all now lives as a purple circular icon in the keyboard's top_bar
             // (next to btn_clipboard) instead of a second header row inside the panel,
             // so it's only ever visible while the clipboard panel itself is open.
-            binding.btnClipClear.setOnClickListener { clickListener.clipboardClearClick() }
+            // It no longer wipes every unpinned clip on a single tap (too easy to hit
+            // by accident with nothing to undo) - the first tap now enters a select
+            // mode so the user can choose exactly which clips to remove, and a second
+            // tap deletes whatever's checked (or just cancels select mode if nothing
+            // was checked).
+            binding.btnClipClear.setOnClickListener {
+                when {
+                    !clipboardAdapter.isSelectionMode() -> clipboardAdapter.enterSelectionMode()
+                    clipboardAdapter.hasSelection() -> {
+                        clickListener.clipboardDeleteSelectedClick(clipboardAdapter.selectedIds())
+                        clipboardAdapter.exitSelectionMode()
+                    }
+                    else -> clipboardAdapter.exitSelectionMode()
+                }
+            }
 
             fun toggleClipboardView(visible: Boolean) {
                 binding.keyboardRows.visibility = if (visible) View.GONE else View.VISIBLE
@@ -515,13 +529,24 @@ class KeyboardView(
                 if (visible) isEmojiPanelOpen = false
                 updateRecentEmojiRowVisibility()
                 if (visible) refreshClipboardList()
-                // Don't let a clip's expanded pin/share/delete row survive a close - the
-                // next time the panel opens (even for a different field/session) it should
-                // start collapsed rather than reappearing already expanded.
-                if (!visible) clipboardAdapter.collapse()
+                // Don't let a clip's expanded pin/share/delete row, or an in-progress
+                // selection, survive a close - the next time the panel opens (even for a
+                // different field/session) it should start fresh.
+                if (!visible) {
+                    clipboardAdapter.collapse()
+                    clipboardAdapter.exitSelectionMode()
+                }
             }
 
-            binding.btnClipboard.setOnClickListener { toggleClipboardView(!isClipboardPanelOpen) }
+            binding.btnClipboard.setOnClickListener {
+                // While selecting clips to delete, the back arrow cancels the selection
+                // first rather than immediately closing the whole panel.
+                if (isClipboardPanelOpen && clipboardAdapter.isSelectionMode()) {
+                    clipboardAdapter.exitSelectionMode()
+                } else {
+                    toggleClipboardView(!isClipboardPanelOpen)
+                }
+            }
 
             this.closeClipboardPanelFn = { toggleClipboardView(false) }
         } catch (t: Throwable) {

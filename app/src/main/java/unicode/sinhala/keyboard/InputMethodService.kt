@@ -115,6 +115,12 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
     // change (some apps re-broadcast the committed text as the new clip) isn't re-captured.
     private var suppressNextClipCapture = false
 
+    // Set right before we ourselves commit text while the emoji panel is open (i.e. an
+    // emoji tap), so the resulting cursor-position change doesn't trip the "user touched
+    // the text field" auto-close in onUpdateSelection - otherwise typing several emojis
+    // in a row kept getting kicked back to the normal keyboard after every single one.
+    private var suppressNextSelectionAutoClose = false
+
     private val clipChangedListener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
         if (suppressNextClipCapture) {
             suppressNextClipCapture = false
@@ -402,9 +408,12 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
 
         // The cursor/selection can only change like this while a panel is open if the
         // user tapped directly in the app's text field (our own key clicks don't move
-        // the cursor via touch), so bring the normal keyboard back automatically.
-        // Both calls are no-ops if that panel isn't open.
-        if (::keyboardView.isInitialized) {
+        // the cursor via touch) - EXCEPT for an emoji tap, which also commits text while
+        // the emoji panel is open but should keep the panel open so several emojis can
+        // be typed in a row. That case sets suppressNextSelectionAutoClose beforehand.
+        if (suppressNextSelectionAutoClose) {
+            suppressNextSelectionAutoClose = false
+        } else if (::keyboardView.isInitialized) {
             keyboardView.closeClipboardPanel()
             keyboardView.closeEmojiPanel()
         }
@@ -919,6 +928,7 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         val ic = currentInputConnection
         if (ic != null) {
             try {
+                suppressNextSelectionAutoClose = true
                 ic.commitText(tag, 1)
                 // Update the recency data + persist it now, but do NOT refresh the
                 // on-screen recent-emoji row here — reordering it under the user's
@@ -981,8 +991,8 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         if (::keyboardView.isInitialized) keyboardView.refreshClipboardList()
     }
 
-    override fun clipboardClearClick() {
-        ClipboardData.clearUnpinned(this)
+    override fun clipboardDeleteSelectedClick(ids: Set<Long>) {
+        ClipboardData.deleteAll(this, ids)
         if (::keyboardView.isInitialized) keyboardView.refreshClipboardList()
     }
 

@@ -94,6 +94,14 @@ object ClipboardData {
         save(context)
     }
 
+    /** Deletes several clips at once (used by the clipboard's multi-select delete flow),
+     *  saving only once instead of once per item. */
+    fun deleteAll(context: Context, ids: Set<Long>) {
+        if (ids.isEmpty()) return
+        clips.removeAll { it.id in ids }
+        save(context)
+    }
+
     /** Clears every unpinned clip, keeping pinned ones. */
     fun clearUnpinned(context: Context) {
         clips.removeAll { !it.pinned }

@@ -13,6 +13,7 @@
     <string name="clip_unpin">Unpin</string>
     <string name="clip_share">Share</string>
     <string name="clip_delete">Delete</string>
+    <string name="clip_selected">Selected</string>
     <string name="settings_clipboard_title">Clipboard manager</string>
     <string name="settings_clipboard_summary">Show a clipboard icon on the keyboard and keep a history of copied text</string>
     <string name="app_name1">Sinhala Keyboard</string>
