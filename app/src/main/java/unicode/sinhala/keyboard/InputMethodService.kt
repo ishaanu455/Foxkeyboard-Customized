@@ -375,6 +375,32 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         }
     }
 
+    override fun onUpdateSelection(
+        oldSelStart: Int, oldSelEnd: Int,
+        newSelStart: Int, newSelEnd: Int,
+        candidatesStart: Int, candidatesEnd: Int
+    ) {
+        super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+
+        // The field's text/cursor can change for reasons that never go through our own
+        // key handlers - e.g. the host app clears the box after its own Send button is
+        // tapped, or the cursor is moved by tapping elsewhere in the text. Without this,
+        // whatever suggestion was showing beforehand stays stuck on screen indefinitely.
+        // Re-derive the token at the new cursor position and refresh/hide the suggestion
+        // bar to match what's actually there now.
+        try {
+            val textBefore = currentInputConnection
+                ?.getTextBeforeCursor(50, 0)
+                ?.toString() ?: ""
+            val token = textBefore.takeLastWhile { !it.isWhitespace() }
+            if (token.isEmpty()) {
+                topBarController?.showNormal()
+            } else {
+                requestSuggestionsForToken(token)
+            }
+        } catch (_: Throwable) {}
+    }
+
 
     private fun resetKeyboardState() {
         mComposing = ""

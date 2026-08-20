@@ -425,7 +425,9 @@ class KeyboardView(
                 val categoryView = ImageView(contextThemeWrapper)
                 categoryView.setImageResource(EmojiData.categoryIcon(category))
                 categoryView.scaleType = ImageView.ScaleType.CENTER_INSIDE
-                val iconPadding = (rowHeight * 0.28f).toInt()
+                // Filled category glyphs read fine smaller than the old outline ones did,
+                // so shrink the padding to let them render bigger and bolder in the tab strip.
+                val iconPadding = (rowHeight * 0.20f).toInt()
                 categoryView.setPadding(iconPadding, iconPadding, iconPadding, iconPadding)
                 categoryView.layoutParams =
                     LinearLayout.LayoutParams(rowHeight, LayoutParams.MATCH_PARENT)
