@@ -942,6 +942,16 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         checkAutoUnshift()
     }
 
+    override fun longPressSecondaryClick(char: String) {
+        val ic = currentInputConnection ?: return
+        try {
+            ic.commitText(char, 1)
+            vibrate()
+        } catch (t: Throwable) {
+            Log.e("IME", "longPressSecondaryClick commit failed", t)
+        }
+    }
+
     override fun eraseDo() {
         val ic = currentInputConnection
         if (ic != null) {
@@ -1055,7 +1065,20 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
                 keyboardView.setLetterKeys(keySet)
                 keyboardView.setNumberKeys(keyLabelsNumbers)
                 keyboardView.setSpecialKeys(keyLabelsSpecialEnglish)
-                keyboardView.setSecondaryLabels(null)
+                // Secondary labels for English: common symbols reachable via long-press
+                val englishSecondary = mapOf(
+                    "a" to "@", "b" to "•", "c" to "©", "d" to "$",
+                    "e" to "€", "f" to "£", "g" to "&", "h" to "#",
+                    "i" to "!", "j" to "%", "k" to "(", "l" to ")",
+                    "m" to "-", "n" to "~", "o" to "°", "p" to "+",
+                    "q" to "?", "r" to "®", "s" to "*", "t" to "™",
+                    "u" to "_", "v" to "|", "w" to "=", "x" to "×",
+                    "y" to "^", "z" to "÷",
+                    "1" to "!", "2" to "@", "3" to "#", "4" to "$",
+                    "5" to "%", "6" to "^", "7" to "&", "8" to "*",
+                    "9" to "(", "0" to ")"
+                )
+                keyboardView.setSecondaryLabels(englishSecondary)
             }
 
             KeyboardLayout.WIJESEKARA -> {

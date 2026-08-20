@@ -52,6 +52,7 @@ class KeyboardView(
         fun numberClick(tag: String)
         fun functionClick(type: Function)
         fun specialClick(tag: String)
+        fun longPressSecondaryClick(char: String)
     }
 
     interface SwipeListener {
@@ -283,6 +284,27 @@ class KeyboardView(
             binding.lX.clickListener = { clickListener.letterOrSymbolClick(it) }
             binding.lY.clickListener = { clickListener.letterOrSymbolClick(it) }
             binding.lZ.clickListener = { clickListener.letterOrSymbolClick(it) }
+
+            // Wire long-press secondary char listeners for all letter keys
+            val letterButtons = listOf(
+                binding.lA, binding.lB, binding.lC, binding.lD, binding.lE,
+                binding.lF, binding.lG, binding.lH, binding.lI, binding.lJ,
+                binding.lK, binding.lL, binding.lM, binding.lN, binding.lO,
+                binding.lP, binding.lQ, binding.lR, binding.lS, binding.lT,
+                binding.lU, binding.lV, binding.lW, binding.lX, binding.lY,
+                binding.lZ
+            )
+            for (btn in letterButtons) {
+                btn.longPressListener = { clickListener.longPressSecondaryClick(it) }
+            }
+            // Wire long-press for number keys too
+            val numberButtons = listOf(
+                binding.n0, binding.n1, binding.n2, binding.n3, binding.n4,
+                binding.n5, binding.n6, binding.n7, binding.n8, binding.n9
+            )
+            for (btn in numberButtons) {
+                btn.longPressListener = { clickListener.longPressSecondaryClick(it) }
+            }
 
             binding.symbol1.clickListener = { clickListener.letterOrSymbolClick(it) }
 
@@ -565,5 +587,18 @@ class KeyboardView(
     fun setShowNumberRow(enabled: Boolean) {
         showNumberRow = enabled
         binding.keyRow1.visibility = if (enabled) View.VISIBLE else View.GONE
+    }
+
+    /** Hot-update all row heights (called when height slider changes without keyboard recreate). */
+    fun updateRowHeight(newRowHeight: Int) {
+        binding.recentEmojiRow.layoutParams.height = newRowHeight
+        binding.keyRow1.layoutParams.height = newRowHeight
+        binding.keyRow2.layoutParams.height = newRowHeight
+        binding.keyRow3.layoutParams.height = newRowHeight
+        binding.keyRow4.layoutParams.height = newRowHeight
+        binding.keyRow5.layoutParams.height = newRowHeight
+        binding.emojiView.root.layoutParams.height = newRowHeight * 5
+        binding.emojiView.emojiBottomBar.layoutParams.height = newRowHeight
+        requestLayout()
     }
 }

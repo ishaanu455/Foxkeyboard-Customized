@@ -90,7 +90,7 @@ fun SettingsScreen() {
         SliderPreference(
             title = "උස",
             value = heightPercentage.value,
-            range = 70f..130f,
+            range = 70f..190f,
             onValueChange = { heightPercentage.value = it }
         )
 
