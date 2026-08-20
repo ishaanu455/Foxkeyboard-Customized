@@ -504,6 +504,38 @@ class KeyboardView(
         binding.lZ.setSecondaryLabel(secondaryLabels?.get("z"))
     }
 
+    // What each key actually commits on long-press. Pass null to clear (falls back
+    // to the visible secondary label per key). Keyed by physical key position
+    // (a-z), same as setSecondaryLabels/setLetterKeys.
+    fun setLongPressChars(longPressChars: Map<String, String>?) {
+        binding.lA.setLongPressChar(longPressChars?.get("a"))
+        binding.lB.setLongPressChar(longPressChars?.get("b"))
+        binding.lC.setLongPressChar(longPressChars?.get("c"))
+        binding.lD.setLongPressChar(longPressChars?.get("d"))
+        binding.lE.setLongPressChar(longPressChars?.get("e"))
+        binding.lF.setLongPressChar(longPressChars?.get("f"))
+        binding.lG.setLongPressChar(longPressChars?.get("g"))
+        binding.lH.setLongPressChar(longPressChars?.get("h"))
+        binding.lI.setLongPressChar(longPressChars?.get("i"))
+        binding.lJ.setLongPressChar(longPressChars?.get("j"))
+        binding.lK.setLongPressChar(longPressChars?.get("k"))
+        binding.lL.setLongPressChar(longPressChars?.get("l"))
+        binding.lM.setLongPressChar(longPressChars?.get("m"))
+        binding.lN.setLongPressChar(longPressChars?.get("n"))
+        binding.lO.setLongPressChar(longPressChars?.get("o"))
+        binding.lP.setLongPressChar(longPressChars?.get("p"))
+        binding.lQ.setLongPressChar(longPressChars?.get("q"))
+        binding.lR.setLongPressChar(longPressChars?.get("r"))
+        binding.lS.setLongPressChar(longPressChars?.get("s"))
+        binding.lT.setLongPressChar(longPressChars?.get("t"))
+        binding.lU.setLongPressChar(longPressChars?.get("u"))
+        binding.lV.setLongPressChar(longPressChars?.get("v"))
+        binding.lW.setLongPressChar(longPressChars?.get("w"))
+        binding.lX.setLongPressChar(longPressChars?.get("x"))
+        binding.lY.setLongPressChar(longPressChars?.get("y"))
+        binding.lZ.setLongPressChar(longPressChars?.get("z"))
+    }
+
     fun setNumberKeys(keyLabels: Map<String, String>) {
         binding.n1.text = keyLabels["1"]
         binding.n2.text = keyLabels["2"]

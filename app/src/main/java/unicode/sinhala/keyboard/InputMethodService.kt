@@ -1051,6 +1051,7 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
                 keyboardView.setNumberKeys(keyLabelsNumbers)
                 keyboardView.setSpecialKeys(keyLabelsSpecialEnglish)
                 keyboardView.setSecondaryLabels(null)
+                keyboardView.setLongPressChars(null)
                 return
             } catch (t: Throwable) {
                 Log.e("IME", "failed to render symbols keyboard", t)
@@ -1081,6 +1082,8 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
                     "b" to ";",  "n" to "\\", "m" to "?"
                 )
                 keyboardView.setSecondaryLabels(englishSecondary)
+                // English: corner label IS the committed char, no separate override needed
+                keyboardView.setLongPressChars(null)
             }
 
             KeyboardLayout.WIJESEKARA -> {
@@ -1090,6 +1093,9 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
                 val specialKeys = if (caps) keyLabelsSpecialWijesekaraSinhalaShifted else keyLabelsSpecialWijesekaraSinhala
                 keyboardView.setSpecialKeys(specialKeys)
                 keyboardView.setSecondaryLabels(null)
+                // No corner label shown, but long-press still commits the symbol
+                // that sits in this key's position on the symbol keyboard.
+                keyboardView.setLongPressChars(symbolsMap)
 
 
             }
@@ -1109,7 +1115,12 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
                         labels[k] = charMap.text
                     }
                 }
+                // Corner label stays the Sinhala phonetic char (visual only).
                 keyboardView.setSecondaryLabels(labels)
+                // But long-press commits the symbol from this key's symbol-keyboard
+                // position, not the Sinhala char — fixes "z" long-press committing
+                // ඳ instead of typing the symbol at that position.
+                keyboardView.setLongPressChars(symbolsMap)
             }
         }
 

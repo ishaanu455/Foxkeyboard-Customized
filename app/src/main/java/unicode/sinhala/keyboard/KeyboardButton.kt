@@ -23,6 +23,7 @@ import android.util.TypedValue
 class KeyboardButton : AppCompatTextView {
     private var isSpecial = false
     private var secondaryLabel: String? = null
+    private var longPressChar: String? = null
     private val secondaryLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     // Long-press popup support
@@ -57,16 +58,19 @@ class KeyboardButton : AppCompatTextView {
         setTextColor(typedValue.data)
 
         setOnTouchListener { view, event ->
-            val secondary = secondaryLabel
+            // What actually gets committed on long-press: longPressChar wins when set
+            // (e.g. Singlish shows a Sinhala corner label but should commit a symbol),
+            // otherwise fall back to the secondary label itself (English/Wijesekara).
+            val longPressTarget = longPressChar ?: secondaryLabel
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     view.isPressed = true
                     longPressTriggered = false
-                    // Schedule long press only if there's a secondary label and a listener
-                    if (secondary != null && longPressListener != null) {
+                    // Schedule long press only if there's something to long-press to
+                    if (longPressTarget != null && longPressListener != null) {
                         longPressHandler.postDelayed({
                             longPressTriggered = true
-                            showPopup(secondary)
+                            showPopup(longPressTarget)
                         }, LONG_PRESS_DELAY_MS)
                     } else {
                         // Normal tap — commit immediately on down (existing behaviour)
@@ -81,12 +85,12 @@ class KeyboardButton : AppCompatTextView {
                     longPressHandler.removeCallbacksAndMessages(null)
                     view.isPressed = false
                     if (longPressTriggered) {
-                        // Finger lifted while popup was showing → commit secondary char
+                        // Finger lifted while popup was showing → commit the long-press char
                         dismissPopup()
-                        if (secondary != null) {
-                            longPressListener?.invoke(secondary)
+                        if (longPressTarget != null) {
+                            longPressListener?.invoke(longPressTarget)
                         }
-                    } else if (secondary != null && longPressListener != null) {
+                    } else if (longPressTarget != null && longPressListener != null) {
                         // Short tap (released before long-press threshold) → commit primary
                         val visible = text?.toString()?.takeIf { it.isNotEmpty() }
                         val rawTag = tag?.toString()?.takeIf { it.isNotEmpty() } ?: ""
@@ -192,6 +196,14 @@ class KeyboardButton : AppCompatTextView {
     fun setSecondaryLabel(label: String?) {
         secondaryLabel = label
         invalidate()
+    }
+
+    // What gets committed on long-press. When null, falls back to secondaryLabel
+    // (so English/Wijesekara keep working with just setSecondaryLabel).
+    // Set this when the visible corner label should differ from the committed char
+    // (e.g. Singlish shows a Sinhala corner label but long-press commits a symbol).
+    fun setLongPressChar(char: String?) {
+        longPressChar = char
     }
 
     override fun onDraw(canvas: Canvas) {
