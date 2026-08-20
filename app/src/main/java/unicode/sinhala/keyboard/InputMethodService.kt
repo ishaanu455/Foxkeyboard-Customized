@@ -156,7 +156,9 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
                 Prefs.getKeyBorders(this),
                 Prefs.getSwipeToErase(this),
                 Prefs.getSwipeToMoveCursor(this),
-                Prefs.getTextSize(this)
+                Prefs.getTextSize(this),
+                Prefs.getShowRecentEmojiRow(this),
+                Prefs.getShowNumberRow(this)
             )
 
             keyboardLayout = Prefs.getSelectedLayout(this)
@@ -223,6 +225,10 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
              onCreateInputView()
          }
 
+        // Re-apply latest toggle settings each time the keyboard is shown,
+        // so Settings changes take effect without restarting the app.
+        keyboardView.setShowRecentEmojiRow(Prefs.getShowRecentEmojiRow(this))
+        keyboardView.setShowNumberRow(Prefs.getShowNumberRow(this))
 
         if (userInvokedInputMethodPicker) {
 
@@ -764,6 +770,9 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
             try {
                 ic.commitText(tag, 1)
                 EmojiData.addRecentEmoji(this, tag)
+                if (::keyboardView.isInitialized) {
+                    keyboardView.refreshRecentEmojiRow()
+                }
             } catch (t: Throwable) {
                 Log.e("IME", "emoji commit failed", t)
             }

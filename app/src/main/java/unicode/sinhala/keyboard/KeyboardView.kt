@@ -18,6 +18,7 @@ import androidx.core.view.children
 import androidx.core.view.isVisible
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,7 +41,9 @@ class KeyboardView(
     keyBorders: Boolean,
     private val swipeToErase: Boolean,
     private val swipeToMoveCursor: Boolean,
-    textSize: Int
+    private val textSize: Int,
+    private var showRecentEmojiRow: Boolean = false,
+    private var showNumberRow: Boolean = true
 ) : LinearLayout(context) {
 
     interface ClickListener {
@@ -93,6 +96,7 @@ class KeyboardView(
         }
     }
     private lateinit var backspaceRepeaterJob: Job
+    private lateinit var recentEmojiAdapter: EmojiAdapter
 
     private var swipeStepStartX: Float = 0F
     private val swipeStepDistance: Float = resources.displayMetrics.widthPixels / 15f
@@ -198,6 +202,23 @@ class KeyboardView(
         }
 
         try {
+            // Number row: hide entirely when the user has toggled it off in Settings
+            binding.keyRow1.visibility = if (showNumberRow) View.VISIBLE else View.GONE
+
+            // Recently-used emoji quick row (horizontal strip above the keys)
+            recentEmojiAdapter = EmojiAdapter(
+                contextThemeWrapper,
+                clickListener,
+                darkTheme,
+                EmojiData.emojis["Recent"] ?: emptyList(),
+                textSize
+            )
+            binding.recentEmojiRow.layoutManager =
+                LinearLayoutManager(contextThemeWrapper, LinearLayoutManager.HORIZONTAL, false)
+            binding.recentEmojiRow.adapter = recentEmojiAdapter
+            binding.recentEmojiRow.layoutParams.height = rowHeight
+            updateRecentEmojiRowVisibility()
+
             binding.keyRow1.layoutParams.height = rowHeight
             binding.keyRow2.layoutParams.height = rowHeight
             binding.keyRow3.layoutParams.height = rowHeight
@@ -517,5 +538,32 @@ class KeyboardView(
             list.sortBy { it.tag.toString().substringAfter("_").toIntOrNull() ?: Int.MAX_VALUE }
         }
         return list
+    }
+
+    // --- Recent emoji row + number row toggles ---
+
+    private fun updateRecentEmojiRowVisibility() {
+        val recent = EmojiData.emojis["Recent"] ?: emptyList()
+        binding.recentEmojiRow.visibility =
+            if (showRecentEmojiRow && recent.isNotEmpty()) View.VISIBLE else View.GONE
+    }
+
+    /** Call after a new emoji is committed so the quick row reflects the latest "Recent" list. */
+    fun refreshRecentEmojiRow() {
+        if (!::recentEmojiAdapter.isInitialized) return
+        recentEmojiAdapter.updateEmojis(EmojiData.emojis["Recent"] ?: emptyList())
+        updateRecentEmojiRowVisibility()
+    }
+
+    /** Applies the latest Settings value without recreating the whole keyboard view. */
+    fun setShowRecentEmojiRow(enabled: Boolean) {
+        showRecentEmojiRow = enabled
+        updateRecentEmojiRowVisibility()
+    }
+
+    /** Applies the latest Settings value without recreating the whole keyboard view. */
+    fun setShowNumberRow(enabled: Boolean) {
+        showNumberRow = enabled
+        binding.keyRow1.visibility = if (enabled) View.VISIBLE else View.GONE
     }
 }

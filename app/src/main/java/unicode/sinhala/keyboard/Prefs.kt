@@ -55,6 +55,14 @@ class Prefs(context: Context) {
         get() = prefs.getBoolean("vibration", true)
         set(value) = prefs.edit().putBoolean("vibration", value).apply()
 
+    var showRecentEmojiRow: Boolean
+        get() = prefs.getBoolean("show_recent_emoji_row", false)
+        set(value) = prefs.edit().putBoolean("show_recent_emoji_row", value).apply()
+
+    var showNumberRow: Boolean
+        get() = prefs.getBoolean("show_number_row", true)
+        set(value) = prefs.edit().putBoolean("show_number_row", value).apply()
+
     fun getKeyboardLayout(): KeyboardLayout {
         return when {
             layoutWijesekara -> KeyboardLayout.WIJESEKARA
@@ -133,6 +141,16 @@ class Prefs(context: Context) {
         fun getVibration(context: Context): Boolean {
             val prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
             return prefs.getBoolean("vibration", true)
+        }
+
+        fun getShowRecentEmojiRow(context: Context): Boolean {
+            val prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+            return prefs.getBoolean("show_recent_emoji_row", false)
+        }
+
+        fun getShowNumberRow(context: Context): Boolean {
+            val prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+            return prefs.getBoolean("show_number_row", true)
         }
 
         // New helper: return the list of enabled layouts in priority order

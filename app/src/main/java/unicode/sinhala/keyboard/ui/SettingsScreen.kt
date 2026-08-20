@@ -79,6 +79,13 @@ fun SettingsScreen() {
 
         SettingsCategory(title = "Layout")
 
+        val showNumberRow = rememberBooleanPreference(context, "show_number_row", true)
+        SwitchPreference(
+            title = "අංක පේළිය පෙන්වන්න",
+            checked = showNumberRow.value,
+            onCheckedChange = { showNumberRow.value = it }
+        )
+
         val heightPercentage = rememberIntPreference(context, "height_percentage", 100)
         SliderPreference(
             title = "උස",
@@ -93,6 +100,15 @@ fun SettingsScreen() {
             value = textSize.value,
             range = 20f..40f,
             onValueChange = { textSize.value = it }
+        )
+
+        SettingsCategory(title = "Emoji")
+
+        val showRecentEmojiRow = rememberBooleanPreference(context, "show_recent_emoji_row", false)
+        SwitchPreference(
+            title = "පසුගිය ඉමෝජි පේළිය පෙන්වන්න",
+            checked = showRecentEmojiRow.value,
+            onCheckedChange = { showRecentEmojiRow.value = it }
         )
 
         SettingsCategory(title = "Support")
