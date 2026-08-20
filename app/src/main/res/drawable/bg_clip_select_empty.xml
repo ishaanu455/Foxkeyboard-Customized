@@ -2,7 +2,7 @@
 <!-- Empty circular checkbox outline, shown on every clip while multi-select mode
      is active but that clip is NOT yet selected - so it's clear up front which
      clips are selectable, instead of only showing an indicator after a tap. -->
-<shape xmlns:android="http://schemas.android.com/res/android"
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
     <solid android:color="@android:color/transparent" />
     <stroke
