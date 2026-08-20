@@ -133,6 +133,15 @@ fun SettingsScreen() {
 
         EmojiStyleSection()
 
+        SettingsCategory(title = "Clipboard")
+
+        val clipboardEnabled = rememberBooleanPreference(context, "clipboard_enabled", true)
+        SwitchPreference(
+            title = "ක්ලිප්බෝඩ් කළමනාකරු",
+            checked = clipboardEnabled.value,
+            onCheckedChange = { clipboardEnabled.value = it }
+        )
+
         SettingsCategory(title = "Support")
 
         PreferenceItem(

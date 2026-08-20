@@ -72,6 +72,11 @@ class Prefs(context: Context) {
         get() = prefs.getBoolean("twemoji_downloaded", false)
         set(value) = prefs.edit().putBoolean("twemoji_downloaded", value).apply()
 
+    /** Whether the clipboard manager (auto-capture + panel + icon) is enabled. */
+    var clipboardEnabled: Boolean
+        get() = prefs.getBoolean("clipboard_enabled", true)
+        set(value) = prefs.edit().putBoolean("clipboard_enabled", value).apply()
+
     fun getKeyboardLayout(): KeyboardLayout {
         return when {
             layoutWijesekara -> KeyboardLayout.WIJESEKARA
@@ -165,6 +170,11 @@ class Prefs(context: Context) {
         fun getEmojiStyle(context: Context): EmojiStyle {
             val prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
             return EmojiStyle.fromId(prefs.getString("emoji_style", EmojiStyle.SYSTEM.id))
+        }
+
+        fun getClipboardEnabled(context: Context): Boolean {
+            val prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+            return prefs.getBoolean("clipboard_enabled", true)
         }
 
         // New helper: return the list of enabled layouts in priority order

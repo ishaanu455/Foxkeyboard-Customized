@@ -100,11 +100,55 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         debouncer = DebouncedInputHandler(serviceScope, 700L)
 
         EmojiData.loadRecentEmojis(this)
+        ClipboardData.load(this)
+        registerClipboardListener()
     }
+
+    // --- System clipboard auto-capture ---
+    // Registers with the platform ClipboardManager so any text the user copies anywhere
+    // on the device (not just inside this IME) is captured into clip history automatically.
+    private val systemClipboardManager: android.content.ClipboardManager by lazy {
+        getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+    }
+
+    // Set right before we ourselves commit a clip via paste, so the resulting primary-clip
+    // change (some apps re-broadcast the committed text as the new clip) isn't re-captured.
+    private var suppressNextClipCapture = false
+
+    private val clipChangedListener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
+        if (suppressNextClipCapture) {
+            suppressNextClipCapture = false
+            return@OnPrimaryClipChangedListener
+        }
+        if (!Prefs.getClipboardEnabled(this)) return@OnPrimaryClipChangedListener
+        try {
+            val clip = systemClipboardManager.primaryClip ?: return@OnPrimaryClipChangedListener
+            if (clip.itemCount == 0) return@OnPrimaryClipChangedListener
+            val text = clip.getItemAt(0).coerceToText(this)?.toString() ?: return@OnPrimaryClipChangedListener
+            ClipboardData.add(this, text)
+            if (::keyboardView.isInitialized) keyboardView.refreshClipboardList()
+        } catch (t: Throwable) {
+            Log.e("IME", "clipboard capture failed", t)
+        }
+    }
+
+    private fun registerClipboardListener() {
+        try {
+            systemClipboardManager.addPrimaryClipChangedListener(clipChangedListener)
+        } catch (t: Throwable) {
+            Log.e("IME", "failed to register clipboard listener", t)
+        }
+    }
+
 
     override fun onDestroy() {
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
         store.clear()
+        try {
+            systemClipboardManager.removePrimaryClipChangedListener(clipChangedListener)
+        } catch (t: Throwable) {
+            Log.e("IME", "failed to unregister clipboard listener", t)
+        }
         super.onDestroy()
         serviceJob.cancel()
         Log.d("IME", "onDestroy called")
@@ -179,7 +223,8 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
             Prefs.getTextSize(this),
             Prefs.getShowRecentEmojiRow(this),
             Prefs.getShowNumberRow(this),
-            Prefs.getEmojiStyle(this)
+            Prefs.getEmojiStyle(this),
+            Prefs.getClipboardEnabled(this)
         )
     }
 
@@ -277,6 +322,7 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         keyboardView.setShowRecentEmojiRow(Prefs.getShowRecentEmojiRow(this))
         keyboardView.setShowNumberRow(Prefs.getShowNumberRow(this))
         keyboardView.updateRowHeight(Prefs.getRowHeight(this))
+        keyboardView.setClipboardEnabled(Prefs.getClipboardEnabled(this))
         // Pick up any emoji usage from the previous session — kept out of the live
         // typing session (see emojiClick) so the row doesn't reorder under the user's
         // finger while they're using it.
@@ -835,6 +881,57 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         }
         vibrate()
         checkAutoUnshift()
+    }
+
+    // --- Clipboard manager ---
+
+    override fun clipboardPasteClick(text: String) {
+        val ic = currentInputConnection
+        if (ic != null) {
+            try {
+                // Mark the next primary-clip change as self-triggered so pasting a clip
+                // doesn't get re-captured as a "new" copy by the system clipboard listener.
+                suppressNextClipCapture = true
+                ic.commitText(text, 1)
+            } catch (t: Throwable) {
+                Log.e("IME", "clipboard paste failed", t)
+            }
+        } else {
+            Log.w("IME", "currentInputConnection is null in clipboardPasteClick")
+        }
+        vibrate()
+        if (::keyboardView.isInitialized) keyboardView.closeClipboardPanel()
+    }
+
+    override fun clipboardPinClick(item: ClipItem) {
+        ClipboardData.setPinned(this, item.id, !item.pinned)
+        if (::keyboardView.isInitialized) keyboardView.refreshClipboardList()
+    }
+
+    override fun clipboardShareClick(item: ClipItem) {
+        try {
+            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(android.content.Intent.EXTRA_TEXT, item.text)
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            val chooser = android.content.Intent.createChooser(shareIntent, null).apply {
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(chooser)
+        } catch (t: Throwable) {
+            Log.e("IME", "clipboard share failed", t)
+        }
+    }
+
+    override fun clipboardDeleteClick(item: ClipItem) {
+        ClipboardData.delete(this, item.id)
+        if (::keyboardView.isInitialized) keyboardView.refreshClipboardList()
+    }
+
+    override fun clipboardClearClick() {
+        ClipboardData.clearUnpinned(this)
+        if (::keyboardView.isInitialized) keyboardView.refreshClipboardList()
     }
 
     override fun numberClick(tag: String) {

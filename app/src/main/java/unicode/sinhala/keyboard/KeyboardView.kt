@@ -44,7 +44,8 @@ class KeyboardView(
     private val textSize: Int,
     private var showRecentEmojiRow: Boolean = false,
     private var showNumberRow: Boolean = true,
-    private val emojiStyle: EmojiStyle = EmojiStyle.SYSTEM
+    private val emojiStyle: EmojiStyle = EmojiStyle.SYSTEM,
+    private var clipboardEnabled: Boolean = true
 ) : LinearLayout(context) {
 
     interface ClickListener {
@@ -54,6 +55,11 @@ class KeyboardView(
         fun functionClick(type: Function)
         fun specialClick(tag: String)
         fun longPressSecondaryClick(char: String)
+        fun clipboardPasteClick(text: String)
+        fun clipboardPinClick(item: ClipItem)
+        fun clipboardShareClick(item: ClipItem)
+        fun clipboardDeleteClick(item: ClipItem)
+        fun clipboardClearClick()
     }
 
     interface SwipeListener {
@@ -99,6 +105,7 @@ class KeyboardView(
     }
     private lateinit var backspaceRepeaterJob: Job
     private lateinit var recentEmojiAdapter: EmojiAdapter
+    private lateinit var clipboardAdapter: ClipboardAdapter
 
     private var swipeStepStartX: Float = 0F
     private val swipeStepDistance: Float = resources.displayMetrics.widthPixels / 15f
@@ -426,11 +433,14 @@ class KeyboardView(
             fun toggleEmojiView(visible: Boolean) {
                 binding.keyboardRows.visibility = if (visible) View.GONE else View.VISIBLE
                 binding.emojiView.root.visibility = if (visible) View.VISIBLE else View.GONE
+                if (visible) binding.clipboardView.root.visibility = View.GONE
                 binding.btnEmoji.setImageResource(if (visible) R.drawable.ic_keyboard_arrow_left else R.drawable.ic_emoji)
+                if (isClipboardPanelOpen) binding.btnClipboard.setImageResource(R.drawable.ic_clipboard)
 
                 // Hide the quick "Recent" strip while the full picker (which has its own
                 // Recent tab) is open; restore it per the user's Settings choice on close.
                 isEmojiPanelOpen = visible
+                if (visible) isClipboardPanelOpen = false
                 updateRecentEmojiRowVisibility()
 
                 // If showing emoji view, refresh Recent category as it might have changed
@@ -443,9 +453,44 @@ class KeyboardView(
                 }
             }
 
-            binding.btnEmoji.setOnClickListener { toggleEmojiView(binding.keyboardRows.isVisible) }
+            binding.btnEmoji.setOnClickListener { toggleEmojiView(!isEmojiPanelOpen) }
 
             binding.emojiView.btnAbc.setOnClickListener { toggleEmojiView(false) }
+
+            // --- Clipboard panel logic ---
+            binding.btnClipboard.isVisible = clipboardEnabled
+
+            binding.clipboardView.root.layoutParams.height = rowHeight * 5
+            binding.clipboardView.clipboardBottomBar.layoutParams.height = rowHeight
+
+            clipboardAdapter = ClipboardAdapter(object : ClipboardAdapter.Actions {
+                override fun onClipTap(item: ClipItem) = clickListener.clipboardPasteClick(item.text)
+                override fun onClipPin(item: ClipItem) = clickListener.clipboardPinClick(item)
+                override fun onClipShare(item: ClipItem) = clickListener.clipboardShareClick(item)
+                override fun onClipDelete(item: ClipItem) = clickListener.clipboardDeleteClick(item)
+            })
+            binding.clipboardView.clipboardList.layoutManager = LinearLayoutManager(contextThemeWrapper)
+            binding.clipboardView.clipboardList.adapter = clipboardAdapter
+
+            binding.clipboardView.clipClearAll.setOnClickListener { clickListener.clipboardClearClick() }
+
+            fun toggleClipboardView(visible: Boolean) {
+                binding.keyboardRows.visibility = if (visible) View.GONE else View.VISIBLE
+                binding.clipboardView.root.visibility = if (visible) View.VISIBLE else View.GONE
+                if (visible) binding.emojiView.root.visibility = View.GONE
+                binding.btnClipboard.setImageResource(if (visible) R.drawable.ic_keyboard_arrow_left else R.drawable.ic_clipboard)
+                if (isEmojiPanelOpen) binding.btnEmoji.setImageResource(R.drawable.ic_emoji)
+
+                isClipboardPanelOpen = visible
+                if (visible) isEmojiPanelOpen = false
+                updateRecentEmojiRowVisibility()
+                if (visible) refreshClipboardList()
+            }
+
+            binding.btnClipboard.setOnClickListener { toggleClipboardView(!isClipboardPanelOpen) }
+            binding.clipboardView.btnClipboardAbc.setOnClickListener { toggleClipboardView(false) }
+
+            this.closeClipboardPanelFn = { toggleClipboardView(false) }
         } catch (t: Throwable) {
             Log.e("KeyboardView", "Error during KeyboardView init configuration", t)
 
@@ -600,10 +645,35 @@ class KeyboardView(
     // The quick "Recent" strip above the keys is redundant then, so we hide it while this is true.
     private var isEmojiPanelOpen = false
 
+    // True while the clipboard history panel is open.
+    private var isClipboardPanelOpen = false
+    private var closeClipboardPanelFn: (() -> Unit)? = null
+
     private fun updateRecentEmojiRowVisibility() {
         val recent = EmojiData.emojis["Recent"] ?: emptyList()
         binding.recentEmojiRow.visibility =
-            if (showRecentEmojiRow && recent.isNotEmpty() && !isEmojiPanelOpen) View.VISIBLE else View.GONE
+            if (showRecentEmojiRow && recent.isNotEmpty() && !isEmojiPanelOpen && !isClipboardPanelOpen) View.VISIBLE else View.GONE
+    }
+
+    /** Re-reads clip history from [ClipboardData] and refreshes the open panel's list/empty state. */
+    fun refreshClipboardList() {
+        if (!::clipboardAdapter.isInitialized) return
+        val items = ClipboardData.all()
+        clipboardAdapter.submit(items)
+        binding.clipboardView.clipboardEmpty.isVisible = items.isEmpty()
+        binding.clipboardView.clipboardList.isVisible = items.isNotEmpty()
+    }
+
+    /** Closes the clipboard panel (e.g. right after a paste, or when the input field changes). */
+    fun closeClipboardPanel() {
+        closeClipboardPanelFn?.invoke()
+    }
+
+    /** Hot-toggle from Settings without recreating the whole KeyboardView. */
+    fun setClipboardEnabled(enabled: Boolean) {
+        clipboardEnabled = enabled
+        binding.btnClipboard.isVisible = enabled
+        if (!enabled && isClipboardPanelOpen) closeClipboardPanel()
     }
 
     /** Call after a new emoji is committed so the quick row reflects the latest "Recent" list. */
@@ -635,6 +705,8 @@ class KeyboardView(
         binding.keyRow5.layoutParams.height = newRowHeight
         binding.emojiView.root.layoutParams.height = newRowHeight * 5
         binding.emojiView.emojiBottomBar.layoutParams.height = newRowHeight
+        binding.clipboardView.root.layoutParams.height = newRowHeight * 5
+        binding.clipboardView.clipboardBottomBar.layoutParams.height = newRowHeight
         requestLayout()
     }
 }
