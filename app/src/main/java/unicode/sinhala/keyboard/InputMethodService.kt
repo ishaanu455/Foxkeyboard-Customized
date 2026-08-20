@@ -465,9 +465,15 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         for (i in 0 until token.codePointCount(0, token.length)) {
             ic.deleteSurroundingTextInCodePoints(1, 0)
         }
-        // commit suggestion
-        ic.commitText(suggestion, 1)
-        // append a space? Do not append automatically — keep behavior stable
+        // commit suggestion, followed by a single space so the user can keep typing the next word
+        ic.commitText("$suggestion ", 1)
+
+        // Mirror the normal space-bar bookkeeping, since we just committed a space too.
+        lastChar = null
+        lastLetter = null
+        positionFlag = ""
+        mComposing = ""
+        tComposing = ""
 
         // record acceptance
         serviceScope.launch {
@@ -475,8 +481,9 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
             suggestionEngine?.recordAccepted(suggestion, lang)
         }
 
-        // Do NOT hide suggestions here; per user request keep suggestion bar open until explicit Action or Space is pressed.
-        // Resetting debounce is optional; keep it running so suggestions update if user continues typing.
+        // Hide suggestions now that the word is complete (word + space), same as pressing space.
+        topBarController?.showNormal()
+        debouncer?.cancel()
     }
 
     private var lastChar: CHAR? = null

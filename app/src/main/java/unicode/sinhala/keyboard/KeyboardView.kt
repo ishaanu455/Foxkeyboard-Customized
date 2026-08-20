@@ -422,12 +422,11 @@ class KeyboardView(
             }
 
             for (category in EmojiData.categories) {
-                val categoryView = TextView(contextThemeWrapper)
-                val emojiIcon = if (category == "Recent") "🕒" else (EmojiData.emojis[category]?.first() ?: "😀")
-                categoryView.text = emojiIcon
-                categoryView.textSize = textSize.toFloat()
-                categoryView.gravity = Gravity.CENTER
-                categoryView.setTextColor(if (darkTheme) 0xFFFFFFFF.toInt() else 0xFF000000.toInt())
+                val categoryView = ImageView(contextThemeWrapper)
+                categoryView.setImageResource(EmojiData.categoryIcon(category))
+                categoryView.scaleType = ImageView.ScaleType.CENTER_INSIDE
+                val iconPadding = (rowHeight * 0.28f).toInt()
+                categoryView.setPadding(iconPadding, iconPadding, iconPadding, iconPadding)
                 categoryView.layoutParams =
                     LinearLayout.LayoutParams(rowHeight, LayoutParams.MATCH_PARENT)
                 categoryView.tag = category
@@ -436,7 +435,7 @@ class KeyboardView(
             }
 
             // Click the first category (Recent) to load it by default
-            (emojiCategories.getChildAt(0) as? TextView)?.performClick()
+            (emojiCategories.getChildAt(0) as? ImageView)?.performClick()
 
             fun toggleEmojiView(visible: Boolean) {
                 binding.keyboardRows.visibility = if (visible) View.GONE else View.VISIBLE
@@ -453,7 +452,7 @@ class KeyboardView(
 
                 // If showing emoji view, refresh Recent category as it might have changed
                 if (visible) {
-                     val firstChild = emojiCategories.getChildAt(0) as? TextView
+                     val firstChild = emojiCategories.getChildAt(0) as? ImageView
                      // Only refresh if the "Recent" tab is currently selected
                      if (firstChild?.background != null) {
                          emojiAdapter.updateEmojis(EmojiData.emojis["Recent"] ?: emptyList())

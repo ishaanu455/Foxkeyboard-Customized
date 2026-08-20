@@ -3,9 +3,23 @@ package unicode.sinhala.keyboard
 
 import android.content.Context
 import android.content.SharedPreferences
+import unicode.sinhala.com.R
 
 object EmojiData {
     val categories = mutableListOf("Recent", "Smileys", "People", "Animals", "Food", "Objects", "Symbols", "Flags")
+
+    /** Vector icon shown in the category tab strip for each emoji category. */
+    fun categoryIcon(category: String): Int = when (category) {
+        "Recent" -> R.drawable.ic_cat_recent
+        "Smileys" -> R.drawable.ic_cat_smileys
+        "People" -> R.drawable.ic_cat_people
+        "Animals" -> R.drawable.ic_cat_animals
+        "Food" -> R.drawable.ic_cat_food
+        "Objects" -> R.drawable.ic_cat_objects
+        "Symbols" -> R.drawable.ic_cat_symbols
+        "Flags" -> R.drawable.ic_cat_flags
+        else -> R.drawable.ic_cat_smileys
+    }
 
     val emojis = mutableMapOf(
         "Recent" to mutableListOf<String>(),
