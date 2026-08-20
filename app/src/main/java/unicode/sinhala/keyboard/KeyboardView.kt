@@ -394,6 +394,8 @@ class KeyboardView(
             // Match the emoji panel height to however many key rows are actually
             // showing (the number row can be hidden via Settings) instead of a
             // hardcoded 5 rows, otherwise the panel ends up taller than the keyboard.
+            // (Final height - including recent-row compensation - is applied below,
+            // once the clipboard panel section has also been set up.)
             binding.emojiView.root.layoutParams.height = rowHeight * (if (showNumberRow) 5 else 4)
 
             binding.emojiView.emojiBottomBar.layoutParams.height = rowHeight
@@ -481,6 +483,12 @@ class KeyboardView(
             // Same row-count fix as the emoji panel above, so the clipboard panel
             // opens at the same height as the normal keyboard, not taller.
             binding.clipboardView.root.layoutParams.height = rowHeight * (if (showNumberRow) 5 else 4)
+
+            // Finalize both panels' heights now that recentEmojiRow is fully configured,
+            // adding back the recent-row height if it's currently showing on the plain
+            // keyboard - otherwise the keyboard shrinks by that amount the moment either
+            // panel opens (since the strip is hidden while a panel is shown).
+            applyPanelHeights()
 
             clipboardAdapter = ClipboardAdapter(object : ClipboardAdapter.Actions {
                 override fun onClipTap(item: ClipItem) = clickListener.clipboardPasteClick(item.text)
@@ -701,10 +709,35 @@ class KeyboardView(
     // The quick "Recent" strip above the keys is redundant while a panel (emoji or
     // clipboard) is open, so we hide it while either is true.
 
+    /**
+     * The recent-emoji quick strip sits OUTSIDE the emoji/clipboard panel's own
+     * FrameLayout - it's a sibling row between the top bar and the panel. It always
+     * gets hidden while a panel is open (see below), so if it was showing on the
+     * plain keyboard, that height needs to be added back onto the panel or the whole
+     * keyboard visibly shrinks the instant a panel opens (and grows again on close).
+     */
+    private fun recentRowCompensation(): Int {
+        val recent = EmojiData.emojis["Recent"] ?: emptyList()
+        return if (showRecentEmojiRow && recent.isNotEmpty()) binding.recentEmojiRow.layoutParams.height else 0
+    }
+
+    /** Keeps the emoji/clipboard panels exactly as tall as the keyboard they cover. */
+    private fun applyPanelHeights() {
+        val currentRowHeight = binding.keyRow2.layoutParams.height
+        val rows = if (showNumberRow) 5 else 4
+        val panelHeight = currentRowHeight * rows + recentRowCompensation()
+        binding.emojiView.root.layoutParams.height = panelHeight
+        binding.clipboardView.root.layoutParams.height = panelHeight
+    }
+
     private fun updateRecentEmojiRowVisibility() {
         val recent = EmojiData.emojis["Recent"] ?: emptyList()
         binding.recentEmojiRow.visibility =
             if (showRecentEmojiRow && recent.isNotEmpty() && !isEmojiPanelOpen && !isClipboardPanelOpen) View.VISIBLE else View.GONE
+        // Whether the strip just appeared or disappeared, re-sync the panel heights
+        // so the keyboard's total height never jumps when a panel opens/closes.
+        applyPanelHeights()
+        requestLayout()
     }
 
     /** Re-reads clip history from [ClipboardData] and refreshes the open panel's list/empty state. */
@@ -752,10 +785,7 @@ class KeyboardView(
         binding.keyRow1.visibility = if (enabled) View.VISIBLE else View.GONE
         // Keep the emoji/clipboard panels the same height as the keyboard whenever
         // the number row is toggled, using whatever row height is currently applied.
-        val rh = binding.keyRow2.layoutParams.height
-        val rows = if (enabled) 5 else 4
-        binding.emojiView.root.layoutParams.height = rh * rows
-        binding.clipboardView.root.layoutParams.height = rh * rows
+        applyPanelHeights()
         requestLayout()
     }
 
@@ -767,9 +797,8 @@ class KeyboardView(
         binding.keyRow3.layoutParams.height = newRowHeight
         binding.keyRow4.layoutParams.height = newRowHeight
         binding.keyRow5.layoutParams.height = newRowHeight
-        binding.emojiView.root.layoutParams.height = newRowHeight * (if (showNumberRow) 5 else 4)
         binding.emojiView.emojiBottomBar.layoutParams.height = newRowHeight
-        binding.clipboardView.root.layoutParams.height = newRowHeight * (if (showNumberRow) 5 else 4)
+        applyPanelHeights()
         requestLayout()
     }
 }
