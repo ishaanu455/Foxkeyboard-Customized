@@ -74,6 +74,13 @@ class KeyboardView(
 
     var keyboardVisible = false
 
+    // True while the full emoji picker panel (with its own Recent/Smileys/... tabs) is open.
+    private var isEmojiPanelOpen = false
+
+    // True while the clipboard history panel is open.
+    private var isClipboardPanelOpen = false
+    private var closeClipboardPanelFn: (() -> Unit)? = null
+
     private lateinit var binding: KeyboardLayoutBinding
 
     val viewBlank1: View get() = binding.blank1
@@ -640,14 +647,8 @@ class KeyboardView(
     }
 
     // --- Recent emoji row + number row toggles ---
-
-    // True while the full emoji picker panel (with its own Recent/Smileys/... tabs) is open.
-    // The quick "Recent" strip above the keys is redundant then, so we hide it while this is true.
-    private var isEmojiPanelOpen = false
-
-    // True while the clipboard history panel is open.
-    private var isClipboardPanelOpen = false
-    private var closeClipboardPanelFn: (() -> Unit)? = null
+    // The quick "Recent" strip above the keys is redundant while a panel (emoji or
+    // clipboard) is open, so we hide it while either is true.
 
     private fun updateRecentEmojiRowVisibility() {
         val recent = EmojiData.emojis["Recent"] ?: emptyList()
