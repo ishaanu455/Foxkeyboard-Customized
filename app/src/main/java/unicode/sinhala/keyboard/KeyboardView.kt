@@ -442,7 +442,10 @@ class KeyboardView(
                 binding.emojiView.root.visibility = if (visible) View.VISIBLE else View.GONE
                 if (visible) binding.clipboardView.root.visibility = View.GONE
                 binding.btnEmoji.setImageResource(if (visible) R.drawable.ic_keyboard_arrow_left else R.drawable.ic_emoji)
-                if (isClipboardPanelOpen) binding.btnClipboard.setImageResource(R.drawable.ic_clipboard)
+                if (isClipboardPanelOpen) {
+                    binding.btnClipboard.setImageResource(R.drawable.ic_clipboard)
+                    binding.btnClipClear.isVisible = false
+                }
 
                 // Hide the quick "Recent" strip while the full picker (which has its own
                 // Recent tab) is open; restore it per the user's Settings choice on close.
@@ -481,13 +484,17 @@ class KeyboardView(
                 }
             binding.clipboardView.clipboardList.adapter = clipboardAdapter
 
-            binding.clipboardView.clipClearAll.setOnClickListener { clickListener.clipboardClearClick() }
+            // Clear-all now lives as a purple circular icon in the keyboard's top_bar
+            // (next to btn_clipboard) instead of a second header row inside the panel,
+            // so it's only ever visible while the clipboard panel itself is open.
+            binding.btnClipClear.setOnClickListener { clickListener.clipboardClearClick() }
 
             fun toggleClipboardView(visible: Boolean) {
                 binding.keyboardRows.visibility = if (visible) View.GONE else View.VISIBLE
                 binding.clipboardView.root.visibility = if (visible) View.VISIBLE else View.GONE
                 if (visible) binding.emojiView.root.visibility = View.GONE
                 binding.btnClipboard.setImageResource(if (visible) R.drawable.ic_keyboard_arrow_left else R.drawable.ic_clipboard)
+                binding.btnClipClear.isVisible = visible
                 if (isEmojiPanelOpen) binding.btnEmoji.setImageResource(R.drawable.ic_emoji)
 
                 isClipboardPanelOpen = visible
@@ -497,7 +504,6 @@ class KeyboardView(
             }
 
             binding.btnClipboard.setOnClickListener { toggleClipboardView(!isClipboardPanelOpen) }
-            binding.clipboardView.btnClipboardAbc.setOnClickListener { toggleClipboardView(false) }
 
             this.closeClipboardPanelFn = { toggleClipboardView(false) }
         } catch (t: Throwable) {

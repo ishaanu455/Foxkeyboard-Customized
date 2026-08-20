@@ -5,47 +5,10 @@
     android:orientation="vertical"
     android:background="?attr/fox_background">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingHorizontal="10dp">
-
-        <ImageView
-            android:id="@+id/btn_clipboard_abc"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:padding="7dp"
-            android:scaleType="centerInside"
-            android:background="@drawable/bg_clip_purple_circle"
-            android:src="@drawable/ic_keyboard_arrow_left"
-            android:tint="@android:color/white"
-            android:contentDescription="@string/clipboard_title" />
-
-        <TextView
-            android:id="@+id/clipboard_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="10dp"
-            android:text="@string/clipboard_title"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="?attr/foreground" />
-
-        <ImageView
-            android:id="@+id/clip_clear_all"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:padding="7dp"
-            android:scaleType="centerInside"
-            android:background="@drawable/bg_clip_purple_circle"
-            android:src="@drawable/ic_clip_delete"
-            android:tint="@android:color/white"
-            android:contentDescription="@string/clipboard_clear" />
-
-    </LinearLayout>
+    <!-- The old header row (back button / title / clear-all) was removed from here.
+         Both actions now live in the keyboard's top_bar (see keyboard_layout.xml:
+         btn_clipboard doubles as back, btn_clip_clear is the new trash icon), so the
+         clipboard list gets the full panel height instead of losing 48dp to a second bar. -->
 
     <FrameLayout
         android:layout_width="match_parent"
