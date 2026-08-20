@@ -427,7 +427,12 @@ class KeyboardView(
                 binding.keyboardRows.visibility = if (visible) View.GONE else View.VISIBLE
                 binding.emojiView.root.visibility = if (visible) View.VISIBLE else View.GONE
                 binding.btnEmoji.setImageResource(if (visible) R.drawable.ic_keyboard_arrow_left else R.drawable.ic_emoji)
-                
+
+                // Hide the quick "Recent" strip while the full picker (which has its own
+                // Recent tab) is open; restore it per the user's Settings choice on close.
+                isEmojiPanelOpen = visible
+                updateRecentEmojiRowVisibility()
+
                 // If showing emoji view, refresh Recent category as it might have changed
                 if (visible) {
                      val firstChild = emojiCategories.getChildAt(0) as? TextView
@@ -591,10 +596,14 @@ class KeyboardView(
 
     // --- Recent emoji row + number row toggles ---
 
+    // True while the full emoji picker panel (with its own Recent/Smileys/... tabs) is open.
+    // The quick "Recent" strip above the keys is redundant then, so we hide it while this is true.
+    private var isEmojiPanelOpen = false
+
     private fun updateRecentEmojiRowVisibility() {
         val recent = EmojiData.emojis["Recent"] ?: emptyList()
         binding.recentEmojiRow.visibility =
-            if (showRecentEmojiRow && recent.isNotEmpty()) View.VISIBLE else View.GONE
+            if (showRecentEmojiRow && recent.isNotEmpty() && !isEmojiPanelOpen) View.VISIBLE else View.GONE
     }
 
     /** Call after a new emoji is committed so the quick row reflects the latest "Recent" list. */
