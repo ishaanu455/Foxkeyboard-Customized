@@ -150,17 +150,20 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
     private var appliedDarkTheme = false
     private var appliedKeyBorders = true
     private var appliedTextSize = -1
+    private var appliedEmojiStyle = EmojiStyle.SYSTEM
 
     private fun rememberAppliedAppearancePrefs() {
         appliedDarkTheme = Prefs.getDarkTheme(this)
         appliedKeyBorders = Prefs.getKeyBorders(this)
         appliedTextSize = Prefs.getTextSize(this)
+        appliedEmojiStyle = Prefs.getEmojiStyle(this)
     }
 
     private fun appearancePrefsRequireRebuild(): Boolean {
         return appliedDarkTheme != Prefs.getDarkTheme(this) ||
             appliedKeyBorders != Prefs.getKeyBorders(this) ||
-            appliedTextSize != Prefs.getTextSize(this)
+            appliedTextSize != Prefs.getTextSize(this) ||
+            appliedEmojiStyle != Prefs.getEmojiStyle(this)
     }
 
     private fun buildKeyboardView(): KeyboardView {
@@ -175,7 +178,8 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
             Prefs.getSwipeToMoveCursor(this),
             Prefs.getTextSize(this),
             Prefs.getShowRecentEmojiRow(this),
-            Prefs.getShowNumberRow(this)
+            Prefs.getShowNumberRow(this),
+            Prefs.getEmojiStyle(this)
         )
     }
 

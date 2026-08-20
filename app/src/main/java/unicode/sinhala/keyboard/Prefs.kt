@@ -63,6 +63,15 @@ class Prefs(context: Context) {
         get() = prefs.getBoolean("show_number_row", true)
         set(value) = prefs.edit().putBoolean("show_number_row", value).apply()
 
+    var emojiStyle: EmojiStyle
+        get() = EmojiStyle.fromId(prefs.getString("emoji_style", EmojiStyle.SYSTEM.id))
+        set(value) = prefs.edit().putString("emoji_style", value.id).apply()
+
+    /** Whether the Twemoji image pack has already been fully downloaded/cached. */
+    var twemojiDownloaded: Boolean
+        get() = prefs.getBoolean("twemoji_downloaded", false)
+        set(value) = prefs.edit().putBoolean("twemoji_downloaded", value).apply()
+
     fun getKeyboardLayout(): KeyboardLayout {
         return when {
             layoutWijesekara -> KeyboardLayout.WIJESEKARA
@@ -151,6 +160,11 @@ class Prefs(context: Context) {
         fun getShowNumberRow(context: Context): Boolean {
             val prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
             return prefs.getBoolean("show_number_row", true)
+        }
+
+        fun getEmojiStyle(context: Context): EmojiStyle {
+            val prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+            return EmojiStyle.fromId(prefs.getString("emoji_style", EmojiStyle.SYSTEM.id))
         }
 
         // New helper: return the list of enabled layouts in priority order

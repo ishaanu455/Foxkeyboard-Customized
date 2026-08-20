@@ -43,7 +43,8 @@ class KeyboardView(
     private val swipeToMoveCursor: Boolean,
     private val textSize: Int,
     private var showRecentEmojiRow: Boolean = false,
-    private var showNumberRow: Boolean = true
+    private var showNumberRow: Boolean = true,
+    private val emojiStyle: EmojiStyle = EmojiStyle.SYSTEM
 ) : LinearLayout(context) {
 
     interface ClickListener {
@@ -212,7 +213,8 @@ class KeyboardView(
                 clickListener,
                 darkTheme,
                 EmojiData.emojis["Recent"] ?: emptyList(),
-                textSize
+                textSize,
+                emojiStyle
             )
             binding.recentEmojiRow.layoutManager =
                 LinearLayoutManager(contextThemeWrapper, LinearLayoutManager.HORIZONTAL, false)
@@ -386,7 +388,8 @@ class KeyboardView(
                 clickListener,
                 darkTheme,
                 EmojiData.emojis["Recent"] ?: emptyList(),
-                textSize
+                textSize,
+                emojiStyle
             )
             emojiGrid.layoutManager = GridLayoutManager(context, 8)
             emojiGrid.adapter = emojiAdapter
