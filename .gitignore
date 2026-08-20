@@ -78,3 +78,8 @@ lint/tmp/
 # Android Profiling
 *.hprof
 
+
+# Signing keystore (never commit this)
+*.keystore
+*.jks
+release.keystore
