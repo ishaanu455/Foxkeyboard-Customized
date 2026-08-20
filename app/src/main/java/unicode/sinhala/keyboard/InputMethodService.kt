@@ -1228,22 +1228,15 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
 
          when (layout) {
              KeyboardLayout.ENGLISH -> {
-                 keyboardView.setLangIndicator("EN")
-                 keyboardView.setLangIndicatorIcon(R.drawable.ic_lang_en)
+                 keyboardView.setLangIndicator("ENG")
                  updateKeyboard()
              }
              KeyboardLayout.WIJESEKARA -> {
-                 keyboardView.setLangIndicator("SI")
-                 keyboardView.setLangIndicatorIcon(R.drawable.ic_lang_si)
-
-
+                 keyboardView.setLangIndicator("SIN")
                  updateKeyboard()
-
-
              }
              KeyboardLayout.SINGLISH -> {
-                 keyboardView.setLangIndicator("SI")
-                 keyboardView.setLangIndicatorIcon(R.drawable.ic_lang_si)
+                 keyboardView.setLangIndicator("SIN")
                  updateKeyboard()
              }
          }

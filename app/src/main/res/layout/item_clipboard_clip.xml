@@ -83,8 +83,10 @@
         android:visibility="gone"
         android:contentDescription="@string/clip_pin" />
 
-    <!-- Selection checkmark badge, shown only while multi-select delete mode is active
-         and this clip is currently selected. -->
+    <!-- Selection checkbox badge - visible on every clip while multi-select delete mode
+         is active. Shows an empty outline circle when not selected (bg/icon swapped in
+         code) and a filled purple circle with a checkmark once selected, so it's clear
+         up front which clips can be picked instead of only showing feedback afterward. -->
     <ImageView
         android:id="@+id/clip_select_check"
         android:layout_width="20dp"
@@ -92,9 +94,7 @@
         android:layout_gravity="top|start"
         android:layout_margin="6dp"
         android:padding="3dp"
-        android:background="@drawable/bg_clip_purple_circle"
-        android:src="@drawable/ic_check"
-        android:tint="@android:color/white"
+        android:background="@drawable/bg_clip_select_empty"
         android:scaleType="centerInside"
         android:visibility="gone"
         android:contentDescription="@string/clip_selected" />

@@ -1,10 +1,13 @@
 package unicode.sinhala.keyboard
 
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
@@ -106,7 +109,23 @@ class ClipboardAdapter(
         holder.actions.isVisible = !selectionMode && item.id == expandedId
         holder.pinBadge.isVisible = item.pinned && !selectionMode
         holder.pin.alpha = if (item.pinned) 1f else 0.5f
-        holder.selectCheck.isVisible = selectionMode && item.id in selectedIds
+
+        // Selection checkbox: visible on EVERY clip while selection mode is active (not
+        // just the ones already picked) so it's obvious up front what can be selected,
+        // rather than the badge only appearing once a clip has already been tapped.
+        holder.selectCheck.isVisible = selectionMode
+        if (selectionMode) {
+            val isSelected = item.id in selectedIds
+            holder.selectCheck.background = AppCompatResources.getDrawable(
+                holder.itemView.context,
+                if (isSelected) R.drawable.bg_clip_purple_circle else R.drawable.bg_clip_select_empty
+            )
+            holder.selectCheck.setImageResource(if (isSelected) R.drawable.ic_check else 0)
+            // The checkmark sits on a solid purple circle, so force it white for
+            // contrast regardless of light/dark theme (ic_check's own fill color
+            // follows the theme, which would blend into the purple in dark mode).
+            holder.selectCheck.imageTintList = if (isSelected) ColorStateList.valueOf(Color.WHITE) else null
+        }
 
         if (selectionMode) {
             // While selecting, a tap toggles the clip instead of pasting it, and

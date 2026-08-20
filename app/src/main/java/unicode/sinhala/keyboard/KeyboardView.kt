@@ -674,12 +674,11 @@ class KeyboardView(
         keyLabels["."]?.let { binding.dot.text = it }
     }
 
+    /** Shows the active layout as text on the language-switch key ("ENG" / "SIN")
+     *  instead of an icon, since the English/Sinhala icons looked identical and
+     *  gave no way to tell which language was actually active at a glance. */
     fun setLangIndicator(text: String) {
-
-    }
-
-    fun setLangIndicatorIcon(iconResId: Int) {
-        binding.lang.setImageResource(iconResId)
+        binding.lang.text = text
     }
 
     // Expose top bar and suggestion views for IME to control

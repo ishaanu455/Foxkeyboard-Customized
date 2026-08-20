@@ -457,15 +457,19 @@
                     android:text="#"
                     android:background="@drawable/key_background_function"/>
 
-                <ImageView
+                <TextView
                     android:id="@+id/lang"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:background="@drawable/key_background_function"
-                    android:padding="8dp"
-                    android:scaleType="centerInside"
-                    android:contentDescription="@null" />
+                    android:gravity="center"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/foreground"
+                    android:includeFontPadding="false"
+                    android:text="ENG"
+                    tools:ignore="HardcodedText" />
 
                 <unicode.sinhala.keyboard.KeyboardButton
                     android:id="@+id/symbol_1"
