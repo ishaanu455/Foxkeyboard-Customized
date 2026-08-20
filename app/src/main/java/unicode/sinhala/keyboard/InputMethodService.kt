@@ -142,24 +142,50 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
 
 
 
+    // Settings that require a full KeyboardView rebuild to take effect, since they
+    // drive the inflate-time theme/style or per-button text size and have no
+    // cheap hot-update path (unlike row height / number row / recent-emoji row,
+    // which update in place). We snapshot what's currently applied and rebuild
+    // whenever Settings has changed one of these since the keyboard was last shown.
+    private var appliedDarkTheme = false
+    private var appliedKeyBorders = true
+    private var appliedTextSize = -1
+
+    private fun rememberAppliedAppearancePrefs() {
+        appliedDarkTheme = Prefs.getDarkTheme(this)
+        appliedKeyBorders = Prefs.getKeyBorders(this)
+        appliedTextSize = Prefs.getTextSize(this)
+    }
+
+    private fun appearancePrefsRequireRebuild(): Boolean {
+        return appliedDarkTheme != Prefs.getDarkTheme(this) ||
+            appliedKeyBorders != Prefs.getKeyBorders(this) ||
+            appliedTextSize != Prefs.getTextSize(this)
+    }
+
+    private fun buildKeyboardView(): KeyboardView {
+        return KeyboardView(
+            this,
+            this,
+            this,
+            Prefs.getRowHeight(this),
+            Prefs.getDarkTheme(this),
+            Prefs.getKeyBorders(this),
+            Prefs.getSwipeToErase(this),
+            Prefs.getSwipeToMoveCursor(this),
+            Prefs.getTextSize(this),
+            Prefs.getShowRecentEmojiRow(this),
+            Prefs.getShowNumberRow(this)
+        )
+    }
+
     override fun onCreateInputView(): View {
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
         if (::keyboardView.isInitialized) return keyboardView
 
         try {
-            keyboardView = KeyboardView(
-                this,
-                this,
-                this,
-                Prefs.getRowHeight(this),
-                Prefs.getDarkTheme(this),
-                Prefs.getKeyBorders(this),
-                Prefs.getSwipeToErase(this),
-                Prefs.getSwipeToMoveCursor(this),
-                Prefs.getTextSize(this),
-                Prefs.getShowRecentEmojiRow(this),
-                Prefs.getShowNumberRow(this)
-            )
+            keyboardView = buildKeyboardView()
+            rememberAppliedAppearancePrefs()
 
             keyboardLayout = Prefs.getSelectedLayout(this)
             setKeyboardLayout(keyboardLayout)
@@ -223,12 +249,34 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
          if (!::keyboardView.isInitialized) {
 
              onCreateInputView()
+         } else if (appearancePrefsRequireRebuild()) {
+             // Dark theme / key borders / text size drive the inflate-time style and
+             // per-button text size — no cheap hot-update path, so rebuild the view
+             // when Settings has changed one of these since the keyboard was last shown.
+             try {
+                 keyboardView = buildKeyboardView()
+                 rememberAppliedAppearancePrefs()
+                 setInputView(keyboardView)
+                 topBarController = TopBarController(
+                     keyboardView.suggestionContainerView,
+                     keyboardView.emojiButtonView,
+                     Prefs.getDarkTheme(this)
+                 )
+                 suggestionTextViews = keyboardView.getSuggestionTextViews()
+             } catch (t: Throwable) {
+                 Log.e("IME", "Failed to rebuild keyboard view for changed appearance settings", t)
+             }
          }
 
-        // Re-apply latest toggle settings each time the keyboard is shown,
+        // Re-apply latest toggle/value settings each time the keyboard is shown,
         // so Settings changes take effect without restarting the app.
         keyboardView.setShowRecentEmojiRow(Prefs.getShowRecentEmojiRow(this))
         keyboardView.setShowNumberRow(Prefs.getShowNumberRow(this))
+        keyboardView.updateRowHeight(Prefs.getRowHeight(this))
+        // Pick up any emoji usage from the previous session — kept out of the live
+        // typing session (see emojiClick) so the row doesn't reorder under the user's
+        // finger while they're using it.
+        keyboardView.refreshRecentEmojiRow()
 
         if (userInvokedInputMethodPicker) {
 
@@ -770,10 +818,11 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         if (ic != null) {
             try {
                 ic.commitText(tag, 1)
+                // Update the recency data + persist it now, but do NOT refresh the
+                // on-screen recent-emoji row here — reordering it under the user's
+                // finger mid-session is jarring. The row picks up the new order the
+                // next time the keyboard is shown (see onStartInputView).
                 EmojiData.addRecentEmoji(this, tag)
-                if (::keyboardView.isInitialized) {
-                    keyboardView.refreshRecentEmojiRow()
-                }
             } catch (t: Throwable) {
                 Log.e("IME", "emoji commit failed", t)
             }
