@@ -1065,18 +1065,20 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
                 keyboardView.setLetterKeys(keySet)
                 keyboardView.setNumberKeys(keyLabelsNumbers)
                 keyboardView.setSpecialKeys(keyLabelsSpecialEnglish)
-                // Secondary labels for English: common symbols reachable via long-press
+                
+                // Secondary labels: matches symbol keyboard position exactly
+                // Row1: q w e r t y u i o p  -> _ ! | = [ ] < > { }
+                // Row2: a s d f g h j k l    -> @ # ^ % & - + ( )
+                // Row3: z x c v b n m        -> * " ' : ; \ ?
                 val englishSecondary = mapOf(
-                    "a" to "@", "b" to "•", "c" to "©", "d" to "$",
-                    "e" to "€", "f" to "£", "g" to "&", "h" to "#",
-                    "i" to "!", "j" to "%", "k" to "(", "l" to ")",
-                    "m" to "-", "n" to "~", "o" to "°", "p" to "+",
-                    "q" to "?", "r" to "®", "s" to "*", "t" to "™",
-                    "u" to "_", "v" to "|", "w" to "=", "x" to "×",
-                    "y" to "^", "z" to "÷",
-                    "1" to "!", "2" to "@", "3" to "#", "4" to "$",
-                    "5" to "%", "6" to "^", "7" to "&", "8" to "*",
-                    "9" to "(", "0" to ")"
+                    "q" to "_",  "w" to "!", "e" to "|",  "r" to "=",
+                    "t" to "[",  "y" to "]", "u" to "<",  "i" to ">",
+                    "o" to "{",  "p" to "}",
+                    "a" to "@",  "s" to "#", "d" to "^",  "f" to "%",
+                    "g" to "&",  "h" to "-", "j" to "+",  "k" to "(",
+                    "l" to ")",
+                    "z" to "*",  "x" to "\"", "c" to "\'", "v" to ":",
+                    "b" to ";",  "n" to "\\", "m" to "?"
                 )
                 keyboardView.setSecondaryLabels(englishSecondary)
             }

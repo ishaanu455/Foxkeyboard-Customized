@@ -297,14 +297,6 @@ class KeyboardView(
             for (btn in letterButtons) {
                 btn.longPressListener = { clickListener.longPressSecondaryClick(it) }
             }
-            // Wire long-press for number keys too
-            val numberButtons = listOf(
-                binding.n0, binding.n1, binding.n2, binding.n3, binding.n4,
-                binding.n5, binding.n6, binding.n7, binding.n8, binding.n9
-            )
-            for (btn in numberButtons) {
-                btn.longPressListener = { clickListener.longPressSecondaryClick(it) }
-            }
 
             binding.symbol1.clickListener = { clickListener.letterOrSymbolClick(it) }
 
