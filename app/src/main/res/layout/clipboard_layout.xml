@@ -20,7 +20,7 @@
             android:text="@string/clipboard_title"
             android:textSize="14sp"
             android:textStyle="bold"
-            android:textColor="?attr/foreground_1" />
+            android:textColor="?attr/foreground" />
 
         <TextView
             android:id="@+id/clip_clear_all"
