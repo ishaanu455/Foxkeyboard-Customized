@@ -56,18 +56,34 @@ class KeyboardView(
         // Settings > row height slider is set to.
         private const val NUM_ROW_HEIGHT_RATIO = 0.86f
 
-        // The recent-emoji quick strip used to be tied to rowHeight, same as the
-        // letter rows. That meant the Settings > keyboard-height slider stretched
-        // or squeezed the empty space around the emoji glyphs: turned up, a big
-        // gap opened between the emoji row and the number row below it; turned
-        // down, the row got too short to fit the emojis and they visually merged
-        // into the number row. Keeping this a fixed dp value means that gap always
-        // looks the same, professional size no matter what the slider is set to.
-        private const val RECENT_EMOJI_ROW_HEIGHT_DP = 42f
+        // Extra vertical room added on top of the emoji glyph's own font-metrics
+        // height, mirroring EmojiAdapter's cell padding (8dp top + 8dp bottom) plus
+        // a small buffer for how much color-emoji glyphs can visually overshoot
+        // their font metrics box on some devices. Without this buffer the row was
+        // sized purely off the sp value and glyphs got clipped top/bottom.
+        private const val RECENT_EMOJI_ROW_VERTICAL_PADDING_DP = 24f
     }
 
     /** Height to use for the number row given the current base [rowHeight]. */
     private fun numRowHeight(baseRowHeight: Int): Int = (baseRowHeight * NUM_ROW_HEIGHT_RATIO).toInt()
+
+    /**
+     * The recent-emoji quick strip used to be tied to rowHeight, same as the letter
+     * rows. That meant the Settings > keyboard-height slider stretched or squeezed
+     * the empty space around the emoji glyphs: turned up, a big gap opened between
+     * the emoji row and the number row below it; turned down, the row got too short
+     * and the emojis got visually clipped/merged into the number row.
+     *
+     * Instead this is sized off the actual emoji glyph size ([textSize], the same
+     * Settings value EmojiAdapter renders emojis at) so it always fits the glyphs
+     * fully with consistent breathing room, independent of the keyboard-height
+     * slider entirely.
+     */
+    private fun recentEmojiRowHeightPx(): Int {
+        val glyphHeightPx =
+            TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, textSize.toFloat(), context.resources.displayMetrics)
+        return (glyphHeightPx + dp(RECENT_EMOJI_ROW_VERTICAL_PADDING_DP)).toInt()
+    }
 
     /** dp -> px, using this view's density (same pattern as EmojiAdapter's helper). */
     private fun dp(value: Float): Int =
@@ -299,7 +315,7 @@ class KeyboardView(
             binding.recentEmojiRow.layoutManager =
                 LinearLayoutManager(contextThemeWrapper, LinearLayoutManager.HORIZONTAL, false)
             binding.recentEmojiRow.adapter = recentEmojiAdapter
-            binding.recentEmojiRow.layoutParams.height = dp(RECENT_EMOJI_ROW_HEIGHT_DP)
+            binding.recentEmojiRow.layoutParams.height = recentEmojiRowHeightPx()
             updateRecentEmojiRowVisibility()
 
             binding.keyRow1.layoutParams.height = numRowHeight(rowHeight)
@@ -952,8 +968,9 @@ class KeyboardView(
 
     /** Hot-update all row heights (called when height slider changes without keyboard recreate). */
     fun updateRowHeight(newRowHeight: Int) {
-        // recentEmojiRow is intentionally NOT updated here - it keeps its fixed
-        // RECENT_EMOJI_ROW_HEIGHT_DP set at init, regardless of this slider.
+        // recentEmojiRow is intentionally NOT updated here - its height is sized
+        // off the emoji glyph size (recentEmojiRowHeightPx()) set at init, not
+        // this keyboard-height slider.
         binding.keyRow1.layoutParams.height = numRowHeight(newRowHeight)
         binding.keyRow2.layoutParams.height = newRowHeight
         binding.keyRow3.layoutParams.height = newRowHeight
