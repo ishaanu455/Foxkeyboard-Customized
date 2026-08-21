@@ -122,6 +122,10 @@ class KeyboardView(
     private val swipeStepDistance: Float = resources.displayMetrics.widthPixels / 15f
     private var startIgnoreSwipe = false
     private var currentSwipeActionType = SwipeActionType.NONE
+    // Set on ACTION_DOWN: true if the gesture started inside the recent-emoji strip,
+    // so swipe-to-erase/cursor never hijacks scrolling that row.
+    private var touchStartedInRecentEmojiRow = false
+    private val recentEmojiRowScreenLoc = IntArray(2)
 
     private enum class SwipeActionType { ERASE, MOVE_CURSOR, NONE }
 
@@ -132,10 +136,11 @@ class KeyboardView(
                 MotionEvent.ACTION_DOWN -> {
                     currentSwipeActionType = SwipeActionType.NONE
                     swipeStepStartX = ev.x
+                    touchStartedInRecentEmojiRow = isTouchInRecentEmojiRow(ev)
                 }
 
                 MotionEvent.ACTION_MOVE -> {
-                    if (!startIgnoreSwipe) {
+                    if (!startIgnoreSwipe && !touchStartedInRecentEmojiRow) {
                         val distanceFromDownX: Float = swipeStepStartX - ev.x
 
                         if (swipeToErase && ev.y < rowHeight * 4 && distanceFromDownX > swipeStepDistance)
@@ -147,10 +152,27 @@ class KeyboardView(
                     }
                 }
 
-                MotionEvent.ACTION_UP -> if (ev.pointerCount == 1) startIgnoreSwipe = false
+                MotionEvent.ACTION_UP -> if (ev.pointerCount == 1) {
+                    startIgnoreSwipe = false
+                    touchStartedInRecentEmojiRow = false
+                }
             }
         }
         return super.onInterceptTouchEvent(ev)
+    }
+
+    /** Uses screen-absolute coordinates so this stays correct regardless of how
+     *  deeply recentEmojiRow is nested inside this view's layout hierarchy. */
+    private fun isTouchInRecentEmojiRow(ev: MotionEvent): Boolean {
+        if (!::binding.isInitialized) return false
+        val row = binding.recentEmojiRow
+        if (row.visibility != View.VISIBLE) return false
+        row.getLocationOnScreen(recentEmojiRowScreenLoc)
+        val left = recentEmojiRowScreenLoc[0]
+        val top = recentEmojiRowScreenLoc[1]
+        val right = left + row.width
+        val bottom = top + row.height
+        return ev.rawX >= left && ev.rawX <= right && ev.rawY >= top && ev.rawY <= bottom
     }
 
     override fun onTouchEvent(event: MotionEvent?): Boolean {

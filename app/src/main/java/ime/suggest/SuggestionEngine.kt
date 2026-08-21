@@ -84,18 +84,41 @@ class SuggestionEngine(private val context: Context) {
         val cleanedPrefix = prefix.trim()
         if (cleanedPrefix.isEmpty()) return emptyList()
 
-        return when (LanguageDetector.detectLanguage(cleanedPrefix)) {
-            LanguageDetector.Language.SINHALA -> {
-                sinhalaTrie.getByPrefix(cleanedPrefix, limit)
-            }
-            else -> {
-                englishTrie.getByPrefix(cleanedPrefix.lowercase(), limit)
-            }
-        }
+        val lang = LanguageDetector.detectLanguage(cleanedPrefix)
+        val queryPrefix = if (lang == LanguageDetector.Language.SINHALA) cleanedPrefix else cleanedPrefix.lowercase()
+        val trie = if (lang == LanguageDetector.Language.SINHALA) sinhalaTrie else englishTrie
+
+        // Gather more candidates than we'll show, so frequency-based ranking has
+        // room to reorder — otherwise a frequent word buried deep in the dictionary
+        // BFS order would never surface.
+        val candidatePoolSize = limit * 6
+        val dictionaryCandidates = trie.getByPrefix(queryPrefix, candidatePoolSize)
+        val learnedCandidates = UserWordFrequency.getByPrefix(context, queryPrefix, candidatePoolSize)
+
+        // Learned words go in first so they're never dropped before dictionary
+        // candidates when we later cap the pool.
+        val merged = LinkedHashSet<String>()
+        merged.addAll(learnedCandidates)
+        merged.addAll(dictionaryCandidates)
+
+        // Rank: user's own typing frequency first, then shorter words, then alphabetical.
+        val ranked = merged.sortedWith(
+            compareByDescending<String> { UserWordFrequency.getFrequency(context, it) }
+                .thenBy { it.length }
+                .thenBy { it }
+        )
+
+        return ranked.take(limit)
     }
 
+    /** Call when the user accepts a suggestion or finishes typing a word — learns it locally. */
     fun recordAccepted(word: String, lang: LanguageDetector.Language) {
-        // Placeholder for future frequency-based ranking (privacy-safe, in-memory only)
+        val normalized = if (lang == LanguageDetector.Language.SINHALA) {
+            Normalizer.normalize(word, Normalizer.Form.NFC)
+        } else {
+            word.lowercase()
+        }
+        UserWordFrequency.learn(context, normalized)
     }
 
     /**

@@ -13,6 +13,7 @@ import android.view.inputmethod.EditorInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import unicode.sinhala.com.R
 import unicode.sinhala.keyboard.Maps.keyLabelsLettersEnglish
@@ -68,6 +69,9 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
 
     private var suggestionEngine: SuggestionEngine? = null
     private var debouncer: DebouncedInputHandler? = null
+    // Tracks the in-flight suggestion search+display coroutine so it can be
+    // cancelled explicitly (fixes suggestions "sticking" after send/space/enter).
+    private var suggestionJob: Job? = null
     private var topBarController: TopBarController? = null
     private var suggestionTextViews: List<TextView> = emptyList()
     private var suggestionsEnabled = true
@@ -97,7 +101,7 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         serviceScope.launch {
             suggestionEngine?.initializeIfNeeded()
         }
-        debouncer = DebouncedInputHandler(serviceScope, 700L)
+        debouncer = DebouncedInputHandler(serviceScope, 80L)
 
         EmojiData.loadRecentEmojis(this)
         ClipboardData.load(this)
@@ -446,15 +450,19 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
             topBarController?.showNormal()
             return
         }
-        // Debounced: fires after 150ms pause on Dispatchers.Default (off UI thread).
-        // Switch back to Main only for UI updates.
+        // Debounced (short delay) then computed off the main thread. The previous
+        // in-flight search is explicitly cancelled before starting a new one —
+        // otherwise a slow/stale search can finish after the user has already
+        // moved on (sent the message, pressed space) and re-show a stale suggestion.
         debouncer?.onTyping(token, onTypingImmediate = { t ->
-            // Launch on Default — suggest() is a suspend fun, runs off main thread.
-            // Switch back to Main only for UI updates.
-            serviceScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+            suggestionJob?.cancel()
+            suggestionJob = serviceScope.launch(kotlinx.coroutines.Dispatchers.Default) {
                 try {
                     val sList = suggestionEngine?.suggest(Normalizer.normalize(t, Normalizer.Form.NFC), 3)
                         ?: emptyList()
+                    // isActive check: if cancelled while suggest() was running, don't
+                    // push a now-stale result to the UI.
+                    if (!isActive) return@launch
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                         if (sList.isNotEmpty()) {
                             topBarController?.showSuggestions(sList, suggestionTextViews) { suggestion ->
@@ -462,6 +470,8 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
                             }
                         }
                     }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                         topBarController?.showNormal()
@@ -470,6 +480,7 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
             }
         }, onIdle = null)
     }
+
 
     override fun letterOrSymbolClick(tag: String) {
         when {
@@ -542,6 +553,7 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         // Hide suggestions now that the word is complete (word + space), same as pressing space.
         topBarController?.showNormal()
         debouncer?.cancel()
+        suggestionJob?.cancel()
     }
 
     private var lastChar: CHAR? = null
@@ -1070,6 +1082,7 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
                 // Hide suggestions explicitly when user presses action
                 topBarController?.showNormal()
                 debouncer?.cancel()
+                suggestionJob?.cancel()
             }
 
             Function.SHIFT -> {
@@ -1179,12 +1192,27 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
 
         if (tag == " " || tag == "32") {
 
+            // Learn the word the user just finished typing — this is how most words
+            // get learned, since users usually type-and-space rather than tapping
+            // the suggestion chip.
+            try {
+                val textBefore = ic?.getTextBeforeCursor(60, 0)?.toString() ?: ""
+                val justTypedWord = textBefore.trimEnd().takeLastWhile { !it.isWhitespace() }
+                if (justTypedWord.length >= 2) {
+                    val lang = LanguageDetector.detectLanguage(justTypedWord)
+                    serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        suggestionEngine?.recordAccepted(justTypedWord, lang)
+                    }
+                }
+            } catch (_: Throwable) {}
+
             lastChar = null
             lastLetter = null
             positionFlag = ""
             // hide suggestions on space/punctuation
             topBarController?.showNormal()
             debouncer?.cancel()
+            suggestionJob?.cancel()
         }
         checkAutoUnshift()
     }
