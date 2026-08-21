@@ -55,10 +55,23 @@ class KeyboardView(
         // means that relationship stays the same no matter what the user's
         // Settings > row height slider is set to.
         private const val NUM_ROW_HEIGHT_RATIO = 0.86f
+
+        // The recent-emoji quick strip used to be tied to rowHeight, same as the
+        // letter rows. That meant the Settings > keyboard-height slider stretched
+        // or squeezed the empty space around the emoji glyphs: turned up, a big
+        // gap opened between the emoji row and the number row below it; turned
+        // down, the row got too short to fit the emojis and they visually merged
+        // into the number row. Keeping this a fixed dp value means that gap always
+        // looks the same, professional size no matter what the slider is set to.
+        private const val RECENT_EMOJI_ROW_HEIGHT_DP = 42f
     }
 
     /** Height to use for the number row given the current base [rowHeight]. */
     private fun numRowHeight(baseRowHeight: Int): Int = (baseRowHeight * NUM_ROW_HEIGHT_RATIO).toInt()
+
+    /** dp -> px, using this view's density (same pattern as EmojiAdapter's helper). */
+    private fun dp(value: Float): Int =
+        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value, context.resources.displayMetrics).toInt()
 
     interface ClickListener {
         fun letterOrSymbolClick(tag: String)
@@ -286,7 +299,7 @@ class KeyboardView(
             binding.recentEmojiRow.layoutManager =
                 LinearLayoutManager(contextThemeWrapper, LinearLayoutManager.HORIZONTAL, false)
             binding.recentEmojiRow.adapter = recentEmojiAdapter
-            binding.recentEmojiRow.layoutParams.height = rowHeight
+            binding.recentEmojiRow.layoutParams.height = dp(RECENT_EMOJI_ROW_HEIGHT_DP)
             updateRecentEmojiRowVisibility()
 
             binding.keyRow1.layoutParams.height = numRowHeight(rowHeight)
@@ -939,7 +952,8 @@ class KeyboardView(
 
     /** Hot-update all row heights (called when height slider changes without keyboard recreate). */
     fun updateRowHeight(newRowHeight: Int) {
-        binding.recentEmojiRow.layoutParams.height = newRowHeight
+        // recentEmojiRow is intentionally NOT updated here - it keeps its fixed
+        // RECENT_EMOJI_ROW_HEIGHT_DP set at init, regardless of this slider.
         binding.keyRow1.layoutParams.height = numRowHeight(newRowHeight)
         binding.keyRow2.layoutParams.height = newRowHeight
         binding.keyRow3.layoutParams.height = newRowHeight
