@@ -544,6 +544,11 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
     private var lastLetter: CHAR? = null
     private var positionFlag = ""
 
+    // Holds the base consonant when "r" forms a rakaransaya right after a consonant+al-lakuna.
+    // If the very next key is "u", we retro-convert that rakar into a gaetta pilla (vocalic-r
+    // matra) instead, so "kru"/"shru"/etc. produce කෘ/ශෘ style output instead of ක්‍ර/ශ්‍ර.
+    private var pendingGaettaPillaBase: CHAR? = null
+
     private fun hasPositionChanged(): Boolean =
         currentInputConnection.getTextBeforeCursor(5, 0)?.toString() != positionFlag
 
@@ -563,6 +568,10 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         lastChar = null
         lastLetter = null
 
+        // Snapshot and clear; only reused this call if the "ru" pattern below actually matches.
+        val pendingGaettaBase = pendingGaettaPillaBase
+        pendingGaettaPillaBase = null
+
         var singlishChar: CHAR = getSinglishChars(input) ?: CHAR.EMPTY
 
         fun newLetter() {
@@ -579,6 +588,17 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         } else {
             when {
                 input == "z" || input == "Z" -> tLastChar = CHAR.MARK_SANYAKA
+
+                pendingGaettaBase != null && mLastChar.code == CHAR.SIGN_AL_LAKUNA.code && singlishChar.code == CHAR.UYANNA.code -> {
+                    // "r" just added a rakar (ZWJ + RAYANNA + al-lakuna) on top of the base
+                    // consonant's al-lakuna. Erase all 4 of those units and drop in the
+                    // gaetta pilla instead, turning e.g. "k" + "r" + "u" into කෘ.
+                    output = CHAR.GAETTA_PILLA.text
+                    erasePreviousChars = 4
+                    tLastLetter = pendingGaettaBase
+                    tLastChar = CHAR.GAETTA_PILLA
+                }
+
                 mLastChar.type == CharType.WYANJANA ->
                     when (singlishChar.code) {
                         CHAR.AYANNA.code -> output = CHAR.AELA_PILLA.text
@@ -598,6 +618,9 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
                             output =
                                 CHAR.ZERO_WIDTH_JOINER.text + CHAR.RAYANNA.text + CHAR.SIGN_AL_LAKUNA.text
                             tLastChar = CHAR.SIGN_AL_LAKUNA
+                            // Remember the base consonant in case the next key is "u",
+                            // which should convert this rakar into a gaetta pilla (see above).
+                            pendingGaettaPillaBase = mLastLetter
                         }
 
                         CHAR.YAYANNA.code -> {
@@ -794,6 +817,13 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
                             output = CHAR.KOMBUVA_HAA_DIGA_AELA_PILLA.text
                             erasePreviousChars = 1
                             tLastChar = CHAR.KOMBUVA_HAA_DIGA_AELA_PILLA
+                        }
+
+                        mLastChar.code == CHAR.GAETTA_PILLA.code && singlishChar.code == CHAR.UYANNA.code -> {
+                            // Second "u" lengthens the gaetta pilla, e.g. "kru" + "u" -> කෲ.
+                            output = CHAR.DIGA_GAETTA_PILLA.text
+                            erasePreviousChars = 1
+                            tLastChar = CHAR.DIGA_GAETTA_PILLA
                         }
 
                         else -> newLetter()
