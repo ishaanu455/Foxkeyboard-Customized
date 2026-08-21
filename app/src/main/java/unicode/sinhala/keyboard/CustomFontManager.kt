@@ -42,15 +42,37 @@ object CustomFontManager {
 
     fun removeFont(context: Context) {
         fontFile(context).delete()
+        clearCache()
     }
+
+    // In-memory cache — disk is only read once per app process lifetime
+    private var cachedTypeface: Typeface? = null
+    private var cachedFontPath: String? = null
 
     fun loadTypeface(context: Context): Typeface? {
         val file = fontFile(context)
-        if (!file.exists()) return null
+        if (!file.exists()) {
+            cachedTypeface = null
+            cachedFontPath = null
+            return null
+        }
+        // Return cached if same file (path + last-modified match)
+        if (cachedTypeface != null && cachedFontPath == file.absolutePath) {
+            return cachedTypeface
+        }
         return try {
-            Typeface.createFromFile(file)
+            Typeface.createFromFile(file).also {
+                cachedTypeface = it
+                cachedFontPath = file.absolutePath
+            }
         } catch (t: Throwable) {
             null
         }
+    }
+
+    /** Call after removing the font so the cache is cleared immediately. */
+    fun clearCache() {
+        cachedTypeface = null
+        cachedFontPath = null
     }
 }

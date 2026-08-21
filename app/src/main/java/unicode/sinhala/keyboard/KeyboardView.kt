@@ -113,6 +113,8 @@ class KeyboardView(
         }
     }
     private lateinit var backspaceRepeaterJob: Job
+    // Single reused scope for backspace repeater — avoids creating a new scope on every press
+    private val backspaceScope = CoroutineScope(Dispatchers.IO + Job())
     private lateinit var recentEmojiAdapter: EmojiAdapter
     private lateinit var clipboardAdapter: ClipboardAdapter
 
@@ -373,7 +375,7 @@ class KeyboardView(
                         lastBackspaceDownTime = System.currentTimeMillis()
                         v.performClick()
                         backspaceRepeaterJob =
-                            backspaceRepeater.launchIn(CoroutineScope(Dispatchers.IO))
+                            backspaceRepeater.launchIn(backspaceScope)
                     }
 
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {

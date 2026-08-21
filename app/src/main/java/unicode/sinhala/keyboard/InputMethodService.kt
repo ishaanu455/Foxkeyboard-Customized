@@ -442,25 +442,27 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
 
     // Helper to request suggestions for a token
     private fun requestSuggestionsForToken(token: String) {
-        // Do not auto-hide suggestions once opened. Only disable suggestions for password fields or when disabled in prefs.
         if (!suggestionsEnabled || isInPasswordField()) {
             topBarController?.showNormal()
             return
         }
-        // Do not auto-hide suggestions on idle - only hide on explicit actions (space/action)
+        // Debounced: fires after 150ms pause on Dispatchers.Default (off UI thread).
+        // Switch back to Main only for UI updates.
         debouncer?.onTyping(token, onTypingImmediate = { t ->
-            serviceScope.launch {
-                try {
-                    val sList = suggestionEngine?.suggest(Normalizer.normalize(t, Normalizer.Form.NFC), 3) ?: emptyList<String>()
+            try {
+                val sList = suggestionEngine?.suggest(Normalizer.normalize(t, Normalizer.Form.NFC), 3)
+                    ?: emptyList()
+                // Switch to Main for UI update
+                serviceScope.launch(kotlinx.coroutines.Dispatchers.Main) {
                     if (sList.isNotEmpty()) {
                         topBarController?.showSuggestions(sList, suggestionTextViews) { suggestion ->
                             onSuggestionClicked(suggestion)
                         }
-                    } else {
-                        // No suggestions found for this prefix. Do not automatically hide the suggestion bar per requirements.
-                        // Keep current suggestions visible.
                     }
-                } catch (e: Exception) {
+                    // No suggestions → keep current bar visible (no hide)
+                }
+            } catch (e: Exception) {
+                serviceScope.launch(kotlinx.coroutines.Dispatchers.Main) {
                     topBarController?.showNormal()
                 }
             }
