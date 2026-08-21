@@ -31,10 +31,10 @@
 
         <ImageView
             android:id="@+id/btn_clip_clear"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
             android:layout_marginEnd="6dp"
-            android:padding="6dp"
+            android:padding="7dp"
             android:scaleType="centerInside"
             android:background="@drawable/bg_clip_purple_circle"
             android:src="@drawable/ic_clip_delete"
@@ -44,20 +44,25 @@
 
         <ImageView
             android:id="@+id/btn_clipboard"
-            android:layout_width="40dp"
-            android:layout_height="match_parent"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:layout_marginEnd="6dp"
             android:src="@drawable/ic_clipboard"
             android:padding="7dp"
-            android:background="?android:selectableItemBackground"
+            android:scaleType="centerInside"
+            android:background="@drawable/bg_top_bar_icon_circle"
+            android:tint="?attr/foreground"
             android:contentDescription="@string/clipboard_title"/>
 
         <ImageView
             android:id="@+id/btn_emoji"
-            android:layout_width="40dp"
-            android:layout_height="match_parent"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
             android:src="@drawable/ic_emoji"
-            android:padding="8dp"
-            android:background="?android:selectableItemBackground"/>
+            android:padding="7dp"
+            android:scaleType="centerInside"
+            android:background="@drawable/bg_top_bar_icon_circle"
+            android:tint="?attr/foreground"/>
 
     </LinearLayout>
 

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rounded circular background for the top-bar icon row (clipboard, emoji, etc.),
+     matching the reference design: a filled circle per icon with a visible pressed
+     state. Reuses the existing keyFunction/keyFunctionPressed theme attrs so it
+     automatically follows the app's light/dark theme, same as the letter keys. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape android:shape="oval">
+            <solid android:color="?attr/keyFunctionPressed" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="?attr/keyFunction" />
+        </shape>
+    </item>
+</selector>
