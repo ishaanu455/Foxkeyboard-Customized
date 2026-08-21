@@ -253,8 +253,9 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
             topBarController = TopBarController(
                 keyboardView.suggestionContainerView,
                 keyboardView.emojiButtonView,
-                Prefs.getDarkTheme(this)
-            )
+                Prefs.getDarkTheme(this),
+                keyboardView.clipboardButtonView
+            ) { Prefs.getClipboardEnabled(this) }
             suggestionTextViews = keyboardView.getSuggestionTextViews()
 
             return keyboardView
@@ -324,8 +325,9 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
                  topBarController = TopBarController(
                      keyboardView.suggestionContainerView,
                      keyboardView.emojiButtonView,
-                     Prefs.getDarkTheme(this)
-                 )
+                     Prefs.getDarkTheme(this),
+                     keyboardView.clipboardButtonView
+                 ) { Prefs.getClipboardEnabled(this) }
                  suggestionTextViews = keyboardView.getSuggestionTextViews()
              } catch (t: Throwable) {
                  Log.e("IME", "Failed to rebuild keyboard view for changed appearance settings", t)
@@ -437,6 +439,12 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
             keyboardView.closeClipboardPanel()
             keyboardView.closeEmojiPanel()
         }
+        // Also drop any leftover suggestion bar/state from the previous field or app -
+        // otherwise a suggestion chip computed for the old text stays on screen after
+        // switching to a new app/field, since nothing else here re-derives it.
+        debouncer?.cancel()
+        suggestionJob?.cancel()
+        topBarController?.showNormal()
     }
 
     override fun onEvaluateFullscreenMode(): Boolean {
@@ -1067,6 +1075,11 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         val ic = currentInputConnection
         when (type) {
             Function.ACTION -> {
+                // Learn the word that's about to be sent BEFORE performEditorAction() -
+                // some host apps clear the input field synchronously as part of handling
+                // the action, which would leave nothing left to read afterwards.
+                learnLastTypedWord(ic)
+
                 if (ic != null) {
                     try {
                         val editorInfo = currentInputEditorInfo
@@ -1164,10 +1177,11 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
 
     override fun specialClick(tag: String) {
         val ic = currentInputConnection
+        var toCommit = tag
         if (ic != null) {
             try {
 
-                val toCommit = if (tag.isNotEmpty() && tag.all { it.isDigit() }) {
+                toCommit = if (tag.isNotEmpty() && tag.all { it.isDigit() }) {
                     try {
                         val code = tag.toInt()
                         when (code) {
@@ -1190,21 +1204,15 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         }
         vibrate()
 
-        if (tag == " " || tag == "32") {
+        // Any word-boundary character (space, comma, dot, etc. - anything that isn't
+        // a letter) ends the word the user was typing, same as pressing space.
+        val isWordBoundary = toCommit.isNotEmpty() && toCommit.none { it.isLetter() }
+        if (isWordBoundary) {
 
             // Learn the word the user just finished typing — this is how most words
             // get learned, since users usually type-and-space rather than tapping
             // the suggestion chip.
-            try {
-                val textBefore = ic?.getTextBeforeCursor(60, 0)?.toString() ?: ""
-                val justTypedWord = textBefore.trimEnd().takeLastWhile { !it.isWhitespace() }
-                if (justTypedWord.length >= 2) {
-                    val lang = LanguageDetector.detectLanguage(justTypedWord)
-                    serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                        suggestionEngine?.recordAccepted(justTypedWord, lang)
-                    }
-                }
-            } catch (_: Throwable) {}
+            learnLastTypedWord(ic)
 
             lastChar = null
             lastLetter = null
@@ -1215,6 +1223,26 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
             suggestionJob?.cancel()
         }
         checkAutoUnshift()
+    }
+
+    /**
+     * Learns the word immediately before the cursor into UserWordFrequency, so it can
+     * be ranked above generic dictionary matches next time. Called from every action
+     * that ends a word: space, punctuation, and the Enter/Send/Go editor action - not
+     * just space, since users frequently finish a word by hitting Send directly (e.g.
+     * in a DM) without ever typing a space or tapping a suggestion chip first.
+     */
+    private fun learnLastTypedWord(ic: android.view.inputmethod.InputConnection?) {
+        try {
+            val textBefore = ic?.getTextBeforeCursor(60, 0)?.toString() ?: ""
+            val justTypedWord = textBefore.trimEnd().takeLastWhile { !it.isWhitespace() }
+            if (justTypedWord.length >= 2) {
+                val lang = LanguageDetector.detectLanguage(justTypedWord)
+                serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    suggestionEngine?.recordAccepted(justTypedWord, lang)
+                }
+            }
+        } catch (_: Throwable) {}
     }
 
     override fun longPressSecondaryClick(char: String) {

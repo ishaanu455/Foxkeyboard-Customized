@@ -708,6 +708,7 @@ class KeyboardView(
     // Expose top bar and suggestion views for IME to control
     val topBarView: LinearLayout get() = binding.topBar
     val emojiButtonView: ImageView get() = binding.btnEmoji
+    val clipboardButtonView: ImageView get() = binding.btnClipboard
     // suggestionContainer in the binding is a generated binding object; use its root view when a View is expected
     val suggestionContainerView: View get() = binding.suggestionContainer.root
     fun getSuggestionTextViews(): List<TextView> {
