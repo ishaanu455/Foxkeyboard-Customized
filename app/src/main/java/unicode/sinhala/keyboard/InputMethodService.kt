@@ -972,14 +972,22 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
             }
         }
 
-        if (erasePreviousChars > 0) erasePrevious(erasePreviousChars)
-
+        // Sinhala conjuncts (gaetta pilla, rakaransaya, etc.) need an erase THEN a
+        // commit - two separate InputConnection calls where a plain English key only
+        // ever needs one. Wrapping them in begin/endBatchEdit tells the host app to
+        // treat both as a single edit and redraw once, instead of once per call -
+        // this is the extra overhead that's unique to Sinhala composition and the
+        // main remaining gap versus a plain-Latin keyboard.
         val ic = currentInputConnection
         if (ic != null) {
+            ic.beginBatchEdit()
             try {
+                if (erasePreviousChars > 0) erasePrevious(erasePreviousChars)
                 ic.commitText(output, 1)
             } catch (t: Throwable) {
                 Log.e("IME", "singlishInput commit failed", t)
+            } finally {
+                ic.endBatchEdit()
             }
         } else {
             Log.w("IME", "currentInputConnection is null in singlishInput")
@@ -989,14 +997,13 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         lastLetter = tLastLetter ?: singlishChar
         positionFlag = currentInputConnection.getTextBeforeCursor(5, 0)?.toString() ?: ""
 
-        // After committing singlish output, request suggestions for updated token
-        try {
-            val textBefore2 = currentInputConnection.getTextBeforeCursor(50, 0)?.toString() ?: ""
-            val token2 = textBefore2.takeLastWhile { !it.isWhitespace() }
-            requestSuggestionsForToken(token2)
-        } catch (t: Throwable) {
-            Log.w("IME", "failed to update suggestions after singlishInput", t)
-        }
+        // Suggestion refresh is handled once already, by letterOrSymbolClick's deferred
+        // post-commit block right after this function returns. Doing it again here too
+        // meant every single Sinhala keystroke fetched text from the host app and ran
+        // the suggestion search TWICE - once synchronously on the main thread right
+        // here, blocking the very next keystroke, and once more right after. This is
+        // why Sinhala typing felt laggier than English/Wijesekara, which only ever hit
+        // that path once. Removed the duplicate.
     }
 
     private fun getSinglishChars(input: String): CHAR? = singlishMap[input]
