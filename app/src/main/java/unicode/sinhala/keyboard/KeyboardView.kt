@@ -27,6 +27,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.withContext
 import unicode.sinhala.com.R
 import unicode.sinhala.com.databinding.KeyboardLayoutBinding
 import kotlin.math.max
@@ -156,16 +157,28 @@ class KeyboardView(
             val timeSinceLastDown = currentTimeMillis - lastBackspaceDownTime
             delay(
                 when {
-                    timeSinceLastDown > 5000 -> 4L
-                    timeSinceLastDown > 4000 -> 8L
-                    timeSinceLastDown > 3000 -> 16L
-                    timeSinceLastDown > 2000 -> 32L
-                    timeSinceLastDown > 1000 -> 64L
+                    // Floor lowered from the old 4L/8L (up to 250 taps/sec) — that was
+                    // firing InputConnection deletes + vibration faster than the
+                    // framework/host app could keep up with, which is what showed up
+                    // as backspace "hanging" or eating keystrokes on longer holds.
+                    timeSinceLastDown > 5000 -> 24L
+                    timeSinceLastDown > 4000 -> 32L
+                    timeSinceLastDown > 3000 -> 40L
+                    timeSinceLastDown > 2000 -> 56L
+                    timeSinceLastDown > 1000 -> 80L
                     timeSinceLastDown > 500 -> 128L
                     else -> 500L
                 }
             )
-            clickListener.functionClick(Function.BACKSPACE)
+            // clickListener.functionClick() touches the InputConnection and the
+            // vibrator, both of which must only be driven from the main thread. This
+            // coroutine's delay-loop runs on backspaceScope (IO), so the actual click
+            // is hopped onto Main here rather than fired straight from the IO thread -
+            // that mismatch was the root cause of backspace feeling laggy/unresponsive
+            // the longer it was held (deletes silently failing under the hood).
+            withContext(Dispatchers.Main) {
+                clickListener.functionClick(Function.BACKSPACE)
+            }
         }
     }
     private lateinit var backspaceRepeaterJob: Job

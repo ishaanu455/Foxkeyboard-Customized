@@ -67,6 +67,13 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
 
     private var userInvokedInputMethodPicker = false
 
+    // Cached once instead of calling getSystemService() on every single key press /
+    // backspace-repeat tick — that lookup + Binder round trip was adding overhead to
+    // every keystroke and was especially costly during fast backspace auto-repeat.
+    private val vibratorService: Vibrator? by lazy {
+        getSystemService(VIBRATOR_SERVICE) as? Vibrator
+    }
+
     private var suggestionEngine: SuggestionEngine? = null
     private var debouncer: DebouncedInputHandler? = null
     // Tracks the in-flight suggestion search+display coroutine so it can be
@@ -101,7 +108,12 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         serviceScope.launch {
             suggestionEngine?.initializeIfNeeded()
         }
-        debouncer = DebouncedInputHandler(serviceScope, 80L)
+        // No artificial wait before the suggestion search starts - the search itself
+        // still runs off the main thread (Dispatchers.Default in
+        // requestSuggestionsForToken) and any in-flight search is cancelled the
+        // moment a newer keystroke comes in, so firing immediately doesn't block
+        // typing; it only makes the suggestion chip appear without a delay.
+        debouncer = DebouncedInputHandler(serviceScope, 0L)
 
         EmojiData.loadRecentEmojis(this)
         ClipboardData.load(this)
@@ -507,15 +519,24 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
             }
         }
 
-        vibrate()
+        // The character is already committed above, so the keypress itself is done -
+        // everything below (haptics + fetching text from the host app to compute
+        // suggestions) is bookkeeping, not part of what the user is waiting to see.
+        // Posting it to run right after this touch event finishes lets the touch
+        // dispatcher move on to the next key immediately instead of blocking on a
+        // cross-process getTextBeforeCursor() call before it can accept the next tap -
+        // this is what caused typing to feel laggy on fast/back-to-back key presses.
+        serviceScope.launch {
+            vibrate()
 
-        try {
-            val textBefore = currentInputConnection
-                ?.getTextBeforeCursor(50, 0)
-                ?.toString() ?: ""
-            val token = textBefore.takeLastWhile { !it.isWhitespace() }
-            requestSuggestionsForToken(token)
-        } catch (_: Throwable) {}
+            try {
+                val textBefore = currentInputConnection
+                    ?.getTextBeforeCursor(50, 0)
+                    ?.toString() ?: ""
+                val token = textBefore.takeLastWhile { !it.isWhitespace() }
+                requestSuggestionsForToken(token)
+            } catch (_: Throwable) {}
+        }
 
         checkAutoUnshift()
     }
@@ -1521,7 +1542,7 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
 
     private fun vibrate() {
         if (!Prefs.getVibration(this)) return
-        val vibrator = getSystemService(VIBRATOR_SERVICE) as? Vibrator
+        val vibrator = vibratorService
         if (vibrator == null) {
             Log.w("IME", "Vibrator service not available")
             return
