@@ -679,6 +679,10 @@ class KeyboardView(
             fun toggleTextSelectView(visible: Boolean) {
                 binding.keyboardRows.visibility = if (visible) View.GONE else View.VISIBLE
                 binding.textSelectView.root.visibility = if (visible) View.VISIBLE else View.GONE
+                // The text-editor panel takes over the whole keyboard area, including
+                // the top bar row (clipboard/emoji/back icons), so it reads as a full
+                // dedicated screen instead of a panel squeezed in under those icons.
+                binding.topBar.visibility = if (visible) View.GONE else View.VISIBLE
                 if (visible) binding.emojiView.root.visibility = View.GONE
                 if (visible) binding.clipboardView.root.visibility = View.GONE
                 binding.btnTextSelect.setImageResource(if (visible) R.drawable.ic_keyboard_arrow_left else R.drawable.ic_text_select)
@@ -912,7 +916,11 @@ class KeyboardView(
             recentRowCompensation()
         binding.emojiView.root.layoutParams.height = panelHeight
         binding.clipboardView.root.layoutParams.height = panelHeight
-        binding.textSelectView.root.layoutParams.height = panelHeight
+        // The text-select panel additionally swallows the top bar's own row (see
+        // toggleTextSelectView), so while it's open it needs that row's height
+        // added back on top, or the panel would come up short by exactly that much.
+        val textSelectExtra = if (isTextSelectPanelOpen) binding.topBar.layoutParams.height else 0
+        binding.textSelectView.root.layoutParams.height = panelHeight + textSelectExtra
     }
 
     private fun updateRecentEmojiRowVisibility() {
