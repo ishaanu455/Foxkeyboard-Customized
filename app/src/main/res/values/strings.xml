@@ -18,4 +18,17 @@
     <string name="settings_clipboard_summary">Show a clipboard icon on the keyboard and keep a history of copied text</string>
     <string name="app_name1">Sinhala Keyboard</string>
     <string name="app_name_si1">සිංහල</string>
+    <string name="keyboard_view">Keyboard</string>
+    <string name="text_select_title">Select text</string>
+    <string name="text_select_cut">Cut</string>
+    <string name="text_select_copy">Copy</string>
+    <string name="text_select_paste">Paste</string>
+    <string name="text_select_all">All</string>
+    <string name="text_select_toggle">Select</string>
+    <string name="text_select_left">Move cursor left</string>
+    <string name="text_select_right">Move cursor right</string>
+    <string name="text_select_up">Move cursor up a line</string>
+    <string name="text_select_down">Move cursor down a line</string>
+    <string name="text_select_word_left">Jump to previous word</string>
+    <string name="text_select_word_right">Jump to next word</string>
 </resources>

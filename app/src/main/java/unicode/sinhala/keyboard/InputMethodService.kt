@@ -422,6 +422,7 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         } else if (::keyboardView.isInitialized) {
             keyboardView.closeClipboardPanel()
             keyboardView.closeEmojiPanel()
+            keyboardView.closeTextSelectPanel()
         }
     }
 
@@ -438,6 +439,7 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         if (::keyboardView.isInitialized) {
             keyboardView.closeClipboardPanel()
             keyboardView.closeEmojiPanel()
+            keyboardView.closeTextSelectPanel()
         }
         // Also drop any leftover suggestion bar/state from the previous field or app -
         // otherwise a suggestion chip computed for the old text stays on screen after
@@ -1303,6 +1305,68 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
             }
         } else {
             Log.w("IME", "currentInputConnection is null in moveLeft")
+        }
+    }
+
+    // --- Text-select panel actions ---
+    // Cut/copy/paste/selectAll go through performContextMenuAction, the same
+    // mechanism the system's own text-selection handles (and every other
+    // keyboard app) use to trigger a target field's own menu action - this
+    // works correctly across apps without us needing to read/replace text
+    // ourselves. Cursor movement (including word-jump and shift-to-extend)
+    // goes through synthetic DPAD key events with the standard SHIFT/CTRL meta
+    // flags, exactly like a physical keyboard would send - so it inherits
+    // whatever line-wrapping/word-boundary logic the target field already has,
+    // instead of us re-implementing it (badly) by hand.
+    override fun textSelectCutClick() {
+        try {
+            currentInputConnection?.performContextMenuAction(android.R.id.cut)
+        } catch (t: Throwable) {
+            Log.e("IME", "textSelectCutClick failed", t)
+        }
+    }
+
+    override fun textSelectCopyClick() {
+        try {
+            currentInputConnection?.performContextMenuAction(android.R.id.copy)
+        } catch (t: Throwable) {
+            Log.e("IME", "textSelectCopyClick failed", t)
+        }
+    }
+
+    override fun textSelectPasteClick() {
+        try {
+            currentInputConnection?.performContextMenuAction(android.R.id.paste)
+        } catch (t: Throwable) {
+            Log.e("IME", "textSelectPasteClick failed", t)
+        }
+    }
+
+    override fun textSelectAllClick() {
+        try {
+            currentInputConnection?.performContextMenuAction(android.R.id.selectAll)
+        } catch (t: Throwable) {
+            Log.e("IME", "textSelectAllClick failed", t)
+        }
+    }
+
+    override fun textSelectMove(direction: TextSelectDirection, extend: Boolean, byWord: Boolean) {
+        val ic = currentInputConnection ?: return
+        val keyCode = when (direction) {
+            TextSelectDirection.LEFT -> KeyEvent.KEYCODE_DPAD_LEFT
+            TextSelectDirection.RIGHT -> KeyEvent.KEYCODE_DPAD_RIGHT
+            TextSelectDirection.UP -> KeyEvent.KEYCODE_DPAD_UP
+            TextSelectDirection.DOWN -> KeyEvent.KEYCODE_DPAD_DOWN
+        }
+        var metaState = 0
+        if (extend) metaState = metaState or KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON
+        if (byWord) metaState = metaState or KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON
+        try {
+            val time = android.os.SystemClock.uptimeMillis()
+            ic.sendKeyEvent(KeyEvent(time, time, KeyEvent.ACTION_DOWN, keyCode, 0, metaState))
+            ic.sendKeyEvent(KeyEvent(time, time, KeyEvent.ACTION_UP, keyCode, 0, metaState))
+        } catch (t: Throwable) {
+            Log.e("IME", "textSelectMove failed", t)
         }
     }
 

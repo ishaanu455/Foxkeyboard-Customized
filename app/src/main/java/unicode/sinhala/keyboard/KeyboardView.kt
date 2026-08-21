@@ -49,6 +49,17 @@ class KeyboardView(
     private var clipboardEnabled: Boolean = true
 ) : LinearLayout(context) {
 
+    companion object {
+        // The number row (1-9,0) reads fine a bit shorter than the letter rows -
+        // keeping it as a ratio of rowHeight (instead of forcing it identical)
+        // means that relationship stays the same no matter what the user's
+        // Settings > row height slider is set to.
+        private const val NUM_ROW_HEIGHT_RATIO = 0.86f
+    }
+
+    /** Height to use for the number row given the current base [rowHeight]. */
+    private fun numRowHeight(baseRowHeight: Int): Int = (baseRowHeight * NUM_ROW_HEIGHT_RATIO).toInt()
+
     interface ClickListener {
         fun letterOrSymbolClick(tag: String)
         fun emojiClick(tag: String)
@@ -61,6 +72,15 @@ class KeyboardView(
         fun clipboardShareClick(item: ClipItem)
         fun clipboardDeleteClick(item: ClipItem)
         fun clipboardDeleteSelectedClick(ids: Set<Long>)
+        // New text-select panel actions. Cut/copy/paste/selectAll are dispatched
+        // via performContextMenuAction on the target field (the same mechanism the
+        // system's own text-selection handles use), and cursor movement goes
+        // through textSelectMove so word-jump and shift-to-extend share one path.
+        fun textSelectCutClick()
+        fun textSelectCopyClick()
+        fun textSelectPasteClick()
+        fun textSelectAllClick()
+        fun textSelectMove(direction: TextSelectDirection, extend: Boolean, byWord: Boolean = false)
     }
 
     interface SwipeListener {
@@ -82,6 +102,13 @@ class KeyboardView(
     private var isClipboardPanelOpen = false
     private var closeClipboardPanelFn: (() -> Unit)? = null
     private var closeEmojiPanelFn: (() -> Unit)? = null
+    private var isTextSelectPanelOpen = false
+    private var closeTextSelectPanelFn: (() -> Unit)? = null
+    // Whether the cursor cluster is currently extending a selection (the
+    // "Select" toggle in the middle of the cluster) rather than just moving
+    // the cursor. Purely UI state - InputMethodService reads it as a param on
+    // every move call, it doesn't need to track it itself.
+    private var isTextSelecting = false
 
     private lateinit var binding: KeyboardLayoutBinding
 
@@ -262,7 +289,7 @@ class KeyboardView(
             binding.recentEmojiRow.layoutParams.height = rowHeight
             updateRecentEmojiRowVisibility()
 
-            binding.keyRow1.layoutParams.height = rowHeight
+            binding.keyRow1.layoutParams.height = numRowHeight(rowHeight)
             binding.keyRow2.layoutParams.height = rowHeight
             binding.keyRow3.layoutParams.height = rowHeight
             binding.keyRow4.layoutParams.height = rowHeight
@@ -420,9 +447,17 @@ class KeyboardView(
             // hardcoded 5 rows, otherwise the panel ends up taller than the keyboard.
             // (Final height - including recent-row compensation - is applied below,
             // once the clipboard panel section has also been set up.)
-            binding.emojiView.root.layoutParams.height = rowHeight * (if (showNumberRow) 5 else 4)
+            binding.emojiView.root.layoutParams.height =
+                rowHeight * 4 + (if (showNumberRow) numRowHeight(rowHeight) else 0)
 
             binding.emojiView.emojiBottomBar.layoutParams.height = rowHeight
+            // emoji_categories_scroll ships with a fixed 40dp height in the XML as a
+            // design-time default, but was never kept in sync with rowHeight here -
+            // that mismatch is what caused the category tab strip (and therefore the
+            // whole emoji panel) to get visibly clipped once the user lowered the
+            // row-height slider below ~40dp. Keep it tied to rowHeight like every
+            // other row so the panel always scales cleanly, never cropped.
+            binding.emojiView.emojiCategoriesScroll.layoutParams.height = rowHeight
 
             val emojiCategories = binding.emojiView.emojiCategories
             val emojiGrid = binding.emojiView.emojiGrid
@@ -473,16 +508,21 @@ class KeyboardView(
                 binding.keyboardRows.visibility = if (visible) View.GONE else View.VISIBLE
                 binding.emojiView.root.visibility = if (visible) View.VISIBLE else View.GONE
                 if (visible) binding.clipboardView.root.visibility = View.GONE
+                if (visible) binding.textSelectView.root.visibility = View.GONE
                 binding.btnEmoji.setImageResource(if (visible) R.drawable.ic_keyboard_arrow_left else R.drawable.ic_emoji)
                 if (isClipboardPanelOpen) {
                     binding.btnClipboard.setImageResource(R.drawable.ic_clipboard)
                     binding.btnClipClear.isVisible = false
                 }
+                if (isTextSelectPanelOpen) binding.btnTextSelect.isSelected = false
 
                 // Hide the quick "Recent" strip while the full picker (which has its own
                 // Recent tab) is open; restore it per the user's Settings choice on close.
                 isEmojiPanelOpen = visible
-                if (visible) isClipboardPanelOpen = false
+                if (visible) {
+                    isClipboardPanelOpen = false
+                    isTextSelectPanelOpen = false
+                }
                 updateRecentEmojiRowVisibility()
 
                 // If showing emoji view, refresh Recent category as it might have changed
@@ -506,7 +546,10 @@ class KeyboardView(
 
             // Same row-count fix as the emoji panel above, so the clipboard panel
             // opens at the same height as the normal keyboard, not taller.
-            binding.clipboardView.root.layoutParams.height = rowHeight * (if (showNumberRow) 5 else 4)
+            binding.clipboardView.root.layoutParams.height =
+                rowHeight * 4 + (if (showNumberRow) numRowHeight(rowHeight) else 0)
+            binding.textSelectView.root.layoutParams.height =
+                rowHeight * 4 + (if (showNumberRow) numRowHeight(rowHeight) else 0)
 
             // Finalize both panels' heights now that recentEmojiRow is fully configured,
             // adding back the recent-row height if it's currently showing on the plain
@@ -553,12 +596,17 @@ class KeyboardView(
                 binding.keyboardRows.visibility = if (visible) View.GONE else View.VISIBLE
                 binding.clipboardView.root.visibility = if (visible) View.VISIBLE else View.GONE
                 if (visible) binding.emojiView.root.visibility = View.GONE
+                if (visible) binding.textSelectView.root.visibility = View.GONE
                 binding.btnClipboard.setImageResource(if (visible) R.drawable.ic_keyboard_arrow_left else R.drawable.ic_clipboard)
                 binding.btnClipClear.isVisible = visible
                 if (isEmojiPanelOpen) binding.btnEmoji.setImageResource(R.drawable.ic_emoji)
+                if (isTextSelectPanelOpen) binding.btnTextSelect.isSelected = false
 
                 isClipboardPanelOpen = visible
-                if (visible) isEmojiPanelOpen = false
+                if (visible) {
+                    isEmojiPanelOpen = false
+                    isTextSelectPanelOpen = false
+                }
                 updateRecentEmojiRowVisibility()
                 if (visible) refreshClipboardList()
                 // Don't let a clip's expanded pin/share/delete row, or an in-progress
@@ -581,6 +629,71 @@ class KeyboardView(
             }
 
             this.closeClipboardPanelFn = { toggleClipboardView(false) }
+
+            // --- Text-select panel logic ---
+            // Everything here lives in its own panel (text_select_layout.xml, wired
+            // exactly like the emoji/clipboard panels above) so it inherits the same
+            // show/hide + height rules automatically.
+            fun toggleTextSelectView(visible: Boolean) {
+                binding.keyboardRows.visibility = if (visible) View.GONE else View.VISIBLE
+                binding.textSelectView.root.visibility = if (visible) View.VISIBLE else View.GONE
+                if (visible) binding.emojiView.root.visibility = View.GONE
+                if (visible) binding.clipboardView.root.visibility = View.GONE
+                binding.btnTextSelect.setImageResource(if (visible) R.drawable.ic_keyboard_arrow_left else R.drawable.ic_text_select)
+                if (isEmojiPanelOpen) binding.btnEmoji.setImageResource(R.drawable.ic_emoji)
+                if (isClipboardPanelOpen) {
+                    binding.btnClipboard.setImageResource(R.drawable.ic_clipboard)
+                    binding.btnClipClear.isVisible = false
+                }
+
+                isTextSelectPanelOpen = visible
+                if (visible) {
+                    isEmojiPanelOpen = false
+                    isClipboardPanelOpen = false
+                } else {
+                    // Selection mode shouldn't survive a close - reopening should
+                    // always start with a plain, non-extending cursor.
+                    isTextSelecting = false
+                    binding.textSelectView.btnTsToggleSelect.isSelected = false
+                }
+                updateRecentEmojiRowVisibility()
+            }
+
+            binding.textSelectView.btnTsCut.setOnClickListener { clickListener.textSelectCutClick() }
+            binding.textSelectView.btnTsCopy.setOnClickListener { clickListener.textSelectCopyClick() }
+            binding.textSelectView.btnTsPaste.setOnClickListener { clickListener.textSelectPasteClick() }
+            binding.textSelectView.btnTsSelectAll.setOnClickListener { clickListener.textSelectAllClick() }
+
+            binding.textSelectView.btnTsToggleSelect.setOnClickListener { v ->
+                isTextSelecting = !isTextSelecting
+                v.isSelected = isTextSelecting
+            }
+
+            binding.textSelectView.btnTsLeft.setOnClickListener {
+                clickListener.textSelectMove(TextSelectDirection.LEFT, isTextSelecting)
+            }
+            binding.textSelectView.btnTsRight.setOnClickListener {
+                clickListener.textSelectMove(TextSelectDirection.RIGHT, isTextSelecting)
+            }
+            binding.textSelectView.btnTsUp.setOnClickListener {
+                clickListener.textSelectMove(TextSelectDirection.UP, isTextSelecting)
+            }
+            binding.textSelectView.btnTsDown.setOnClickListener {
+                clickListener.textSelectMove(TextSelectDirection.DOWN, isTextSelecting)
+            }
+            binding.textSelectView.btnTsWordLeft.setOnClickListener {
+                clickListener.textSelectMove(TextSelectDirection.LEFT, isTextSelecting, byWord = true)
+            }
+            binding.textSelectView.btnTsWordRight.setOnClickListener {
+                clickListener.textSelectMove(TextSelectDirection.RIGHT, isTextSelecting, byWord = true)
+            }
+
+            binding.textSelectView.btnTsAbc.setOnClickListener { toggleTextSelectView(false) }
+            binding.textSelectView.btnTsBackspace.setOnTouchListener(backspaceTouchListener)
+
+            binding.btnTextSelect.setOnClickListener { toggleTextSelectView(!isTextSelectPanelOpen) }
+
+            this.closeTextSelectPanelFn = { toggleTextSelectView(false) }
         } catch (t: Throwable) {
             Log.e("KeyboardView", "Error during KeyboardView init configuration", t)
 
@@ -747,17 +860,23 @@ class KeyboardView(
 
     /** Keeps the emoji/clipboard panels exactly as tall as the keyboard they cover. */
     private fun applyPanelHeights() {
+        // keyRow2-5 (letter/space rows) are always the 4 "full height" rows; the
+        // number row (keyRow1) is intentionally shorter (see NUM_ROW_HEIGHT_RATIO)
+        // and only counts when it's actually showing.
         val currentRowHeight = binding.keyRow2.layoutParams.height
-        val rows = if (showNumberRow) 5 else 4
-        val panelHeight = currentRowHeight * rows + recentRowCompensation()
+        val numRowHeightNow = binding.keyRow1.layoutParams.height
+        val panelHeight = currentRowHeight * 4 +
+            (if (showNumberRow) numRowHeightNow else 0) +
+            recentRowCompensation()
         binding.emojiView.root.layoutParams.height = panelHeight
         binding.clipboardView.root.layoutParams.height = panelHeight
+        binding.textSelectView.root.layoutParams.height = panelHeight
     }
 
     private fun updateRecentEmojiRowVisibility() {
         val recent = EmojiData.emojis["Recent"] ?: emptyList()
         binding.recentEmojiRow.visibility =
-            if (showRecentEmojiRow && recent.isNotEmpty() && !isEmojiPanelOpen && !isClipboardPanelOpen) View.VISIBLE else View.GONE
+            if (showRecentEmojiRow && recent.isNotEmpty() && !isEmojiPanelOpen && !isClipboardPanelOpen && !isTextSelectPanelOpen) View.VISIBLE else View.GONE
         // Whether the strip just appeared or disappeared, re-sync the panel heights
         // so the keyboard's total height never jumps when a panel opens/closes.
         applyPanelHeights()
@@ -781,6 +900,11 @@ class KeyboardView(
     /** Closes the emoji panel (e.g. when the input field changes or the keyboard is reopened). */
     fun closeEmojiPanel() {
         if (isEmojiPanelOpen) closeEmojiPanelFn?.invoke()
+    }
+
+    /** Closes the text-select panel (e.g. when the input field changes or the keyboard is reopened). */
+    fun closeTextSelectPanel() {
+        if (isTextSelectPanelOpen) closeTextSelectPanelFn?.invoke()
     }
 
     /** Hot-toggle from Settings without recreating the whole KeyboardView. */
@@ -816,12 +940,15 @@ class KeyboardView(
     /** Hot-update all row heights (called when height slider changes without keyboard recreate). */
     fun updateRowHeight(newRowHeight: Int) {
         binding.recentEmojiRow.layoutParams.height = newRowHeight
-        binding.keyRow1.layoutParams.height = newRowHeight
+        binding.keyRow1.layoutParams.height = numRowHeight(newRowHeight)
         binding.keyRow2.layoutParams.height = newRowHeight
         binding.keyRow3.layoutParams.height = newRowHeight
         binding.keyRow4.layoutParams.height = newRowHeight
         binding.keyRow5.layoutParams.height = newRowHeight
         binding.emojiView.emojiBottomBar.layoutParams.height = newRowHeight
+        // Keep the category strip in sync too - see the matching comment where
+        // it's first set, in the init block above.
+        binding.emojiView.emojiCategoriesScroll.layoutParams.height = newRowHeight
         applyPanelHeights()
         requestLayout()
     }

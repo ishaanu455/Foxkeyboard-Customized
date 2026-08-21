@@ -29,40 +29,50 @@
             android:layout_height="match_parent"
             android:layout_weight="1" />
 
-        <ImageView
-            android:id="@+id/btn_clip_clear"
-            android:layout_width="34dp"
-            android:layout_height="34dp"
-            android:layout_marginEnd="6dp"
-            android:padding="7dp"
-            android:scaleType="centerInside"
-            android:background="@drawable/bg_clip_purple_circle"
-            android:src="@drawable/ic_clip_delete"
-            android:tint="@android:color/white"
-            android:visibility="gone"
-            android:contentDescription="@string/clipboard_clear" />
+        <!-- Every icon after this point uses @style/TopBarIcon, which owns the
+             size and the 4dp marginStart gap. That's the "professional spacing"
+             mechanism: to add icon #4, #5, #6, #7 later (e.g. the cursor-mode
+             toggle), just drop in another ImageView with style="@style/TopBarIcon"
+             here - the gap to its neighbour is automatic, no per-icon margin
+             tuning needed, and the row will hold up to 7 icons at this size
+             within a standard keyboard width. -->
+        <LinearLayout
+            android:id="@+id/top_bar_icon_row"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-        <ImageView
-            android:id="@+id/btn_clipboard"
-            android:layout_width="34dp"
-            android:layout_height="34dp"
-            android:layout_marginEnd="6dp"
-            android:src="@drawable/ic_clipboard"
-            android:padding="7dp"
-            android:scaleType="centerInside"
-            android:background="@drawable/bg_top_bar_icon_circle"
-            android:tint="?attr/foreground"
-            android:contentDescription="@string/clipboard_title"/>
+            <ImageView
+                android:id="@+id/btn_clip_clear"
+                style="@style/TopBarIcon"
+                android:background="@drawable/bg_clip_purple_circle"
+                android:src="@drawable/ic_clip_delete"
+                android:tint="@android:color/white"
+                android:visibility="gone"
+                android:contentDescription="@string/clipboard_clear" />
 
-        <ImageView
-            android:id="@+id/btn_emoji"
-            android:layout_width="34dp"
-            android:layout_height="34dp"
-            android:src="@drawable/ic_emoji"
-            android:padding="7dp"
-            android:scaleType="centerInside"
-            android:background="@drawable/bg_top_bar_icon_circle"
-            android:tint="?attr/foreground"/>
+            <ImageView
+                android:id="@+id/btn_clipboard"
+                style="@style/TopBarIcon"
+                android:src="@drawable/ic_clipboard"
+                android:tint="?attr/foreground"
+                android:contentDescription="@string/clipboard_title"/>
+
+            <ImageView
+                android:id="@+id/btn_emoji"
+                style="@style/TopBarIcon"
+                android:src="@drawable/ic_emoji"
+                android:tint="?attr/foreground"/>
+
+            <ImageView
+                android:id="@+id/btn_text_select"
+                style="@style/TopBarIcon"
+                android:src="@drawable/ic_text_select"
+                android:tint="?attr/foreground"
+                android:contentDescription="@string/text_select_title"/>
+
+        </LinearLayout>
 
     </LinearLayout>
 
@@ -545,6 +555,11 @@
         <include
             android:id="@+id/clipboard_view"
             layout="@layout/clipboard_layout"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/text_select_view"
+            layout="@layout/text_select_layout"
             android:visibility="gone" />
     </FrameLayout>
 </LinearLayout>

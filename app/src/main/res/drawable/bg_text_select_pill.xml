@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rounded pill background for the Cut/Copy/Paste/Select-all row in the new
+     text-select panel. Reuses the same key colors as the rest of the keyboard
+     (keyFunction/keyFunctionPressed) so the panel doesn't feel like a bolted-on
+     screen. android:state_selected uses the app's existing accent color, so
+     "Select all" can show a toggled-on look reusing this same drawable. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/accent" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/keyFunctionPressed" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/keyFunction" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
+</selector>

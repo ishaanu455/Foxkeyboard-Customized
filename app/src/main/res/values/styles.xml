@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Shared style for every icon in the top bar (clipboard, emoji, clip-clear,
+         and any future icon such as the cursor-mode toggle). Centralising the
+         size/spacing here means the top bar can scale from 2 icons up to the
+         7-icon max without each icon needing its own hand-tuned margin - just
+         apply this style and the spacing stays even automatically. -->
+    <style name="TopBarIcon">
+        <item name="android:layout_width">38dp</item>
+        <item name="android:layout_height">38dp</item>
+        <item name="android:layout_marginStart">4dp</item>
+        <item name="android:padding">6dp</item>
+        <item name="android:scaleType">centerInside</item>
+        <item name="android:background">@drawable/bg_top_bar_icon_circle</item>
+    </style>
+
+</resources>
