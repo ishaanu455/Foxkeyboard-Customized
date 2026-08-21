@@ -5,31 +5,27 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
- * Debounces suggestion search so it only fires after the user pauses typing.
- * Search runs on Dispatchers.Default — never blocks the main/UI thread.
- *
- * onTypingImmediate is no longer called on every keystroke.
- * Instead, after [debounceMs] ms of silence the callback fires on Default,
- * and the caller switches to Main for any UI update.
+ * Debounces input so the callback fires only after the user pauses typing.
+ * The callback itself is a plain lambda — the caller is responsible for
+ * dispatching to the correct thread (e.g. launching a coroutine inside it).
  */
 class DebouncedInputHandler(
     private val scope: CoroutineScope,
-    private val debounceMs: Long = 150L   // 150 ms feels instant but skips mid-word searches
+    private val debounceMs: Long = 150L
 ) {
     private var debounceJob: Job? = null
 
     fun onTyping(
         token: String,
-        onTypingImmediate: (String) -> Unit,   // now called debounced, on Default thread
+        onTypingImmediate: (String) -> Unit,
         onIdle: (() -> Unit)? = null
     ) {
         debounceJob?.cancel()
-        debounceJob = scope.launch(Dispatchers.Default) {
+        debounceJob = scope.launch(Dispatchers.Main) {
             delay(debounceMs)
-            onTypingImmediate(token)   // search happens here, off main thread
+            onTypingImmediate(token)
             if (onIdle != null) {
                 delay(debounceMs)
                 onIdle()

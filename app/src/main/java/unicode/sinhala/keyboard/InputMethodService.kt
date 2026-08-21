@@ -449,21 +449,23 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         // Debounced: fires after 150ms pause on Dispatchers.Default (off UI thread).
         // Switch back to Main only for UI updates.
         debouncer?.onTyping(token, onTypingImmediate = { t ->
-            try {
-                val sList = suggestionEngine?.suggest(Normalizer.normalize(t, Normalizer.Form.NFC), 3)
-                    ?: emptyList()
-                // Switch to Main for UI update
-                serviceScope.launch(kotlinx.coroutines.Dispatchers.Main) {
-                    if (sList.isNotEmpty()) {
-                        topBarController?.showSuggestions(sList, suggestionTextViews) { suggestion ->
-                            onSuggestionClicked(suggestion)
+            // Launch on Default — suggest() is a suspend fun, runs off main thread.
+            // Switch back to Main only for UI updates.
+            serviceScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+                try {
+                    val sList = suggestionEngine?.suggest(Normalizer.normalize(t, Normalizer.Form.NFC), 3)
+                        ?: emptyList()
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        if (sList.isNotEmpty()) {
+                            topBarController?.showSuggestions(sList, suggestionTextViews) { suggestion ->
+                                onSuggestionClicked(suggestion)
+                            }
                         }
                     }
-                    // No suggestions → keep current bar visible (no hide)
-                }
-            } catch (e: Exception) {
-                serviceScope.launch(kotlinx.coroutines.Dispatchers.Main) {
-                    topBarController?.showNormal()
+                } catch (e: Exception) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        topBarController?.showNormal()
+                    }
                 }
             }
         }, onIdle = null)
