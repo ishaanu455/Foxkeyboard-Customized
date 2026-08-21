@@ -20,6 +20,7 @@
     <string name="app_name_si1">සිංහල</string>
     <string name="keyboard_view">Keyboard</string>
     <string name="text_select_title">Select text</string>
+    <string name="text_editor_title">Text Editor</string>
     <string name="text_select_cut">Cut</string>
     <string name="text_select_copy">Copy</string>
     <string name="text_select_paste">Paste</string>

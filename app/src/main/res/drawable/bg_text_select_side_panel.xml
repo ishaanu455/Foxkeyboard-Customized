@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Flat surface for the right-side Cut/Copy/Paste/Select-all column, one
+     shade lighter than the panel background so it reads as a distinct menu. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/keyNormal" />
+</shape>
