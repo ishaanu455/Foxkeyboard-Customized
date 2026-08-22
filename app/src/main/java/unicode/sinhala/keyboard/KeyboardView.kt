@@ -551,7 +551,15 @@ class KeyboardView(
                 binding.emojiView.root.visibility = if (visible) View.VISIBLE else View.GONE
                 if (visible) binding.clipboardView.root.visibility = View.GONE
                 if (visible) binding.textSelectView.root.visibility = View.GONE
-                binding.btnEmoji.setImageResource(if (visible) R.drawable.ic_keyboard_arrow_left else R.drawable.ic_emoji)
+                // While the emoji panel is open, its own back arrow is the only exit
+                // control needed - the clipboard/text-select toggle icons next to it
+                // would just be dead weight, so hide them and bring back a proper
+                // full-arrow "back" icon (matching the text-editor panel's own back
+                // arrow) instead of the plain chevron.
+                binding.btnEmoji.setImageResource(if (visible) R.drawable.ic_arrow_back else R.drawable.ic_emoji)
+                binding.btnClipboard.visibility =
+                    if (visible) View.GONE else (if (clipboardEnabled) View.VISIBLE else View.GONE)
+                binding.btnTextSelect.visibility = if (visible) View.GONE else View.VISIBLE
                 if (isClipboardPanelOpen) {
                     binding.btnClipboard.setImageResource(R.drawable.ic_clipboard)
                     binding.btnClipClear.isVisible = false
@@ -639,8 +647,13 @@ class KeyboardView(
                 binding.clipboardView.root.visibility = if (visible) View.VISIBLE else View.GONE
                 if (visible) binding.emojiView.root.visibility = View.GONE
                 if (visible) binding.textSelectView.root.visibility = View.GONE
-                binding.btnClipboard.setImageResource(if (visible) R.drawable.ic_keyboard_arrow_left else R.drawable.ic_clipboard)
+                // Same idea as the emoji panel above: while the clipboard panel is
+                // open, hide the emoji/text-select toggle icons and swap in the same
+                // proper full-arrow "back" icon instead of the plain chevron.
+                binding.btnClipboard.setImageResource(if (visible) R.drawable.ic_arrow_back else R.drawable.ic_clipboard)
                 binding.btnClipClear.isVisible = visible
+                binding.btnEmoji.visibility = if (visible) View.GONE else View.VISIBLE
+                binding.btnTextSelect.visibility = if (visible) View.GONE else View.VISIBLE
                 if (isEmojiPanelOpen) binding.btnEmoji.setImageResource(R.drawable.ic_emoji)
                 if (isTextSelectPanelOpen) binding.btnTextSelect.isSelected = false
 
@@ -868,6 +881,11 @@ class KeyboardView(
     val topBarView: LinearLayout get() = binding.topBar
     val emojiButtonView: ImageView get() = binding.btnEmoji
     val clipboardButtonView: ImageView get() = binding.btnClipboard
+
+    /** True while any of the emoji/clipboard/text-select panels is open. The IME uses
+     *  this to skip its own suggestion-bar refresh (which otherwise fights with the
+     *  panel-specific icon visibility below by forcing btnEmoji/btnClipboard back on). */
+    val isAnyPanelOpen: Boolean get() = isEmojiPanelOpen || isClipboardPanelOpen || isTextSelectPanelOpen
     // suggestionContainer in the binding is a generated binding object; use its root view when a View is expected
     val suggestionContainerView: View get() = binding.suggestionContainer.root
     fun getSuggestionTextViews(): List<TextView> {

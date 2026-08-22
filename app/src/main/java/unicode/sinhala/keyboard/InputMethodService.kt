@@ -412,17 +412,24 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         // whatever suggestion was showing beforehand stays stuck on screen indefinitely.
         // Re-derive the token at the new cursor position and refresh/hide the suggestion
         // bar to match what's actually there now.
-        try {
-            val textBefore = currentInputConnection
-                ?.getTextBeforeCursor(50, 0)
-                ?.toString() ?: ""
-            val token = textBefore.takeLastWhile { !it.isWhitespace() }
-            if (token.isEmpty()) {
-                topBarController?.showNormal()
-            } else {
-                requestSuggestionsForToken(token)
-            }
-        } catch (_: Throwable) {}
+        //
+        // Skipped entirely while any panel (emoji/clipboard/text-select) is open:
+        // topBarController.showNormal() unconditionally sets btnEmoji/btnClipboard back
+        // to VISIBLE, which would undo the panel-specific icon hiding in KeyboardView
+        // every time a cursor-moving button (or an emoji tap) fires this callback.
+        if (!(::keyboardView.isInitialized && keyboardView.isAnyPanelOpen)) {
+            try {
+                val textBefore = currentInputConnection
+                    ?.getTextBeforeCursor(50, 0)
+                    ?.toString() ?: ""
+                val token = textBefore.takeLastWhile { !it.isWhitespace() }
+                if (token.isEmpty()) {
+                    topBarController?.showNormal()
+                } else {
+                    requestSuggestionsForToken(token)
+                }
+            } catch (_: Throwable) {}
+        }
 
         // The cursor/selection can only change like this while a panel is open if the
         // user tapped directly in the app's text field (our own key clicks don't move
@@ -1346,8 +1353,18 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
     // flags, exactly like a physical keyboard would send - so it inherits
     // whatever line-wrapping/word-boundary logic the target field already has,
     // instead of us re-implementing it (badly) by hand.
+    // Every one of these programmatically moves the cursor/selection (or, for
+    // paste, also inserts text), which triggers onUpdateSelection just like the
+    // user tapping directly in the host app's field would - and that handler's
+    // default behaviour is to treat any such change as "the user left the panel"
+    // and auto-close it. Setting suppressNextSelectionAutoClose beforehand (the
+    // same mechanism the emoji panel already relies on for emoji taps) tells that
+    // one upcoming onUpdateSelection call to leave the text-select panel open, so
+    // pressing Cut/Copy/Paste/Select-all/an arrow no longer kicks the user back
+    // out to the plain keyboard.
     override fun textSelectCutClick() {
         try {
+            suppressNextSelectionAutoClose = true
             currentInputConnection?.performContextMenuAction(android.R.id.cut)
         } catch (t: Throwable) {
             Log.e("IME", "textSelectCutClick failed", t)
@@ -1356,6 +1373,7 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
 
     override fun textSelectCopyClick() {
         try {
+            suppressNextSelectionAutoClose = true
             currentInputConnection?.performContextMenuAction(android.R.id.copy)
         } catch (t: Throwable) {
             Log.e("IME", "textSelectCopyClick failed", t)
@@ -1364,6 +1382,7 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
 
     override fun textSelectPasteClick() {
         try {
+            suppressNextSelectionAutoClose = true
             currentInputConnection?.performContextMenuAction(android.R.id.paste)
         } catch (t: Throwable) {
             Log.e("IME", "textSelectPasteClick failed", t)
@@ -1372,6 +1391,7 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
 
     override fun textSelectAllClick() {
         try {
+            suppressNextSelectionAutoClose = true
             currentInputConnection?.performContextMenuAction(android.R.id.selectAll)
         } catch (t: Throwable) {
             Log.e("IME", "textSelectAllClick failed", t)
@@ -1390,6 +1410,7 @@ class InputMethodService : android.inputmethodservice.InputMethodService(),
         if (extend) metaState = metaState or KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON
         if (byWord) metaState = metaState or KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON
         try {
+            suppressNextSelectionAutoClose = true
             val time = android.os.SystemClock.uptimeMillis()
             ic.sendKeyEvent(KeyEvent(time, time, KeyEvent.ACTION_DOWN, keyCode, 0, metaState))
             ic.sendKeyEvent(KeyEvent(time, time, KeyEvent.ACTION_UP, keyCode, 0, metaState))
