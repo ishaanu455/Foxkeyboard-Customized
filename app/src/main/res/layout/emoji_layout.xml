@@ -7,19 +7,10 @@
     android:orientation="vertical"
     android:background="?attr/fox_background">
 
-    <HorizontalScrollView
-        android:id="@+id/emoji_categories_scroll"
-        android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:scrollbars="none">
-
-        <LinearLayout
-            android:id="@+id/emoji_categories"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:orientation="horizontal"
-            android:paddingHorizontal="4dp" />
-    </HorizontalScrollView>
+    <!-- The category tab strip used to live here as its own row. It now sits in
+         keyboard_layout.xml's top_bar, on the same line as the back arrow (see
+         KeyboardView.kt toggleEmojiView), so the grid gets that row's height
+         back automatically. -->
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/emoji_grid"

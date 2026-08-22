@@ -1,11 +1,13 @@
 package unicode.sinhala.keyboard
 
 import android.annotation.SuppressLint
+import android.content.ClipData
 import android.content.Context
 import android.graphics.Color
 import android.util.Log
 import android.util.TypedValue
 import android.view.ContextThemeWrapper
+import android.view.DragEvent
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -493,17 +495,14 @@ class KeyboardView(
                 rowHeight * 4 + (if (showNumberRow) numRowHeight(rowHeight) else 0)
 
             binding.emojiView.emojiBottomBar.layoutParams.height = rowHeight
-            // emoji_categories_scroll ships with a fixed 40dp height in the XML as a
-            // design-time default, but was never kept in sync with rowHeight here -
-            // that mismatch is what caused the category tab strip (and therefore the
-            // whole emoji panel) to get visibly clipped once the user lowered the
-            // row-height slider below ~40dp. Keep it tied to rowHeight like every
-            // other row so the panel always scales cleanly, never cropped.
-            binding.emojiView.emojiCategoriesScroll.layoutParams.height = rowHeight
+            // emoji_categories_scroll now lives directly in the top bar (same line
+            // as the back arrow) instead of its own row inside emoji_layout.xml, so
+            // its height is simply match_parent against the top bar's fixed height -
+            // no rowHeight sync needed here any more.
 
-            val emojiCategories = binding.emojiView.emojiCategories
+            val emojiCategories = binding.emojiCategories
             val emojiGrid = binding.emojiView.emojiGrid
-            val emojiCategoriesScroll = binding.emojiView.emojiCategoriesScroll
+            val emojiCategoriesScroll = binding.emojiCategoriesScroll
 
             val emojiAdapter = EmojiAdapter(
                 contextThemeWrapper,
@@ -528,6 +527,47 @@ class KeyboardView(
                 )
             }
 
+            // Long-pressing any category icon picks it up; dragging it over its
+            // neighbours live-reorders the strip. The back arrow (btn_emoji) lives
+            // outside this container entirely, so it's never part of the drag and
+            // never moves - only the category icons themselves can be swapped.
+            val categoryLongPressListener = View.OnLongClickListener { v ->
+                val shadow = View.DragShadowBuilder(v)
+                v.startDragAndDrop(ClipData.newPlainText("", ""), shadow, v, 0)
+                v.alpha = 0.3f
+                true
+            }
+
+            emojiCategories.setOnDragListener { container, event ->
+                val draggedView = event.localState as? View
+                when (event.action) {
+                    DragEvent.ACTION_DRAG_LOCATION -> {
+                        if (draggedView != null && container is ViewGroup) {
+                            val currentIndex = container.indexOfChild(draggedView)
+                            var targetIndex = container.childCount - 1
+                            var accumulated = 0f
+                            for (i in 0 until container.childCount) {
+                                accumulated += container.getChildAt(i).width
+                                if (event.x < accumulated) {
+                                    targetIndex = i
+                                    break
+                                }
+                            }
+                            if (targetIndex != currentIndex) {
+                                container.removeView(draggedView)
+                                container.addView(draggedView, targetIndex)
+                            }
+                        }
+                        true
+                    }
+                    DragEvent.ACTION_DRAG_ENDED -> {
+                        draggedView?.alpha = 1f
+                        true
+                    }
+                    else -> true
+                }
+            }
+
             for (category in EmojiData.categories) {
                 val categoryView = ImageView(contextThemeWrapper)
                 categoryView.setImageResource(EmojiData.categoryIcon(category))
@@ -540,6 +580,7 @@ class KeyboardView(
                     LinearLayout.LayoutParams(rowHeight, LayoutParams.MATCH_PARENT)
                 categoryView.tag = category
                 categoryView.setOnClickListener(categoryClickListener)
+                categoryView.setOnLongClickListener(categoryLongPressListener)
                 emojiCategories.addView(categoryView)
             }
 
@@ -560,9 +601,16 @@ class KeyboardView(
                 binding.btnClipboard.visibility =
                     if (visible) View.GONE else (if (clipboardEnabled) View.VISIBLE else View.GONE)
                 binding.btnTextSelect.visibility = if (visible) View.GONE else View.VISIBLE
+                // The category tab strip moves onto this same row, right after the
+                // fixed btn_emoji back arrow, and the row itself switches to
+                // width=0dp/weight=1 so the strip has the rest of the line to expand
+                // into (see setTopBarIconRowExpanded).
+                binding.emojiCategoriesScroll.isVisible = visible
+                setTopBarIconRowExpanded(visible)
                 if (isClipboardPanelOpen) {
                     binding.btnClipboard.setImageResource(R.drawable.ic_clipboard)
                     binding.btnClipClear.isVisible = false
+                    binding.clipboardRowSpacer.isVisible = false
                 }
                 if (isTextSelectPanelOpen) binding.btnTextSelect.isSelected = false
 
@@ -652,9 +700,19 @@ class KeyboardView(
                 // proper full-arrow "back" icon instead of the plain chevron.
                 binding.btnClipboard.setImageResource(if (visible) R.drawable.ic_arrow_back else R.drawable.ic_clipboard)
                 binding.btnClipClear.isVisible = visible
+                // The spacer between the fixed back arrow (btn_clipboard) and
+                // btn_clip_clear only shows up while the panel is open, and the row
+                // itself switches to width=0dp/weight=1 at the same time so the
+                // spacer can actually expand and push the trash icon to the row's
+                // far end (see setTopBarIconRowExpanded).
+                binding.clipboardRowSpacer.isVisible = visible
+                setTopBarIconRowExpanded(visible)
                 binding.btnEmoji.visibility = if (visible) View.GONE else View.VISIBLE
                 binding.btnTextSelect.visibility = if (visible) View.GONE else View.VISIBLE
-                if (isEmojiPanelOpen) binding.btnEmoji.setImageResource(R.drawable.ic_emoji)
+                if (isEmojiPanelOpen) {
+                    binding.btnEmoji.setImageResource(R.drawable.ic_emoji)
+                    binding.emojiCategoriesScroll.isVisible = false
+                }
                 if (isTextSelectPanelOpen) binding.btnTextSelect.isSelected = false
 
                 isClipboardPanelOpen = visible
@@ -699,11 +757,16 @@ class KeyboardView(
                 if (visible) binding.emojiView.root.visibility = View.GONE
                 if (visible) binding.clipboardView.root.visibility = View.GONE
                 binding.btnTextSelect.setImageResource(if (visible) R.drawable.ic_keyboard_arrow_left else R.drawable.ic_text_select)
-                if (isEmojiPanelOpen) binding.btnEmoji.setImageResource(R.drawable.ic_emoji)
+                if (isEmojiPanelOpen) {
+                    binding.btnEmoji.setImageResource(R.drawable.ic_emoji)
+                    binding.emojiCategoriesScroll.isVisible = false
+                }
                 if (isClipboardPanelOpen) {
                     binding.btnClipboard.setImageResource(R.drawable.ic_clipboard)
                     binding.btnClipClear.isVisible = false
+                    binding.clipboardRowSpacer.isVisible = false
                 }
+                if (visible && (isEmojiPanelOpen || isClipboardPanelOpen)) setTopBarIconRowExpanded(false)
 
                 isTextSelectPanelOpen = visible
                 if (visible) {
@@ -886,6 +949,23 @@ class KeyboardView(
      *  this to skip its own suggestion-bar refresh (which otherwise fights with the
      *  panel-specific icon visibility below by forcing btnEmoji/btnClipboard back on). */
     val isAnyPanelOpen: Boolean get() = isEmojiPanelOpen || isClipboardPanelOpen || isTextSelectPanelOpen
+
+    /** top_bar_icon_row is normally wrap_content so its icons stay bunched together
+     *  at the row's start. While the clipboard or emoji panel is open, one of its
+     *  icons needs to stretch to the far end of the line (the clip-clear trash icon
+     *  for clipboard, the category tab strip for emoji) - switching the row to
+     *  width=0dp/weight=1 gives that stretchy child actual space to expand into. */
+    private fun setTopBarIconRowExpanded(expanded: Boolean) {
+        val params = binding.topBarIconRow.layoutParams as LinearLayout.LayoutParams
+        if (expanded) {
+            params.width = 0
+            params.weight = 1f
+        } else {
+            params.width = LayoutParams.WRAP_CONTENT
+            params.weight = 0f
+        }
+        binding.topBarIconRow.layoutParams = params
+    }
     // suggestionContainer in the binding is a generated binding object; use its root view when a View is expected
     val suggestionContainerView: View get() = binding.suggestionContainer.root
     fun getSuggestionTextViews(): List<TextView> {
@@ -1016,9 +1096,8 @@ class KeyboardView(
         binding.keyRow4.layoutParams.height = newRowHeight
         binding.keyRow5.layoutParams.height = newRowHeight
         binding.emojiView.emojiBottomBar.layoutParams.height = newRowHeight
-        // Keep the category strip in sync too - see the matching comment where
-        // it's first set, in the init block above.
-        binding.emojiView.emojiCategoriesScroll.layoutParams.height = newRowHeight
+        // emoji_categories_scroll no longer needs syncing here - it now lives in the
+        // top bar with a fixed match_parent height (see keyboard_layout.xml).
         applyPanelHeights()
         requestLayout()
     }

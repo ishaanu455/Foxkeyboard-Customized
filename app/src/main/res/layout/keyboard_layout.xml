@@ -43,6 +43,28 @@
             android:orientation="horizontal"
             android:gravity="center_vertical">
 
+            <!-- Pinned to the very start of the row. Doubles as the clipboard
+                 panel's back arrow (see KeyboardView.kt toggleClipboardView) -
+                 it never changes position, only its icon/content-description. -->
+            <ImageView
+                android:id="@+id/btn_clipboard"
+                style="@style/TopBarIcon"
+                android:src="@drawable/ic_clipboard"
+                android:tint="?attr/foreground"
+                android:contentDescription="@string/clipboard_title"/>
+
+            <!-- Visible only while the clipboard panel is open: an expanding
+                 spacer that pushes btn_clip_clear all the way to the opposite
+                 corner from the fixed back arrow above. top_bar_icon_row itself
+                 is switched to width=0dp/weight=1 at the same time so this
+                 spacer has room to actually expand into. -->
+            <Space
+                android:id="@+id/clipboard_row_spacer"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:visibility="gone" />
+
             <ImageView
                 android:id="@+id/btn_clip_clear"
                 style="@style/TopBarIcon"
@@ -52,18 +74,38 @@
                 android:visibility="gone"
                 android:contentDescription="@string/clipboard_clear" />
 
-            <ImageView
-                android:id="@+id/btn_clipboard"
-                style="@style/TopBarIcon"
-                android:src="@drawable/ic_clipboard"
-                android:tint="?attr/foreground"
-                android:contentDescription="@string/clipboard_title"/>
-
+            <!-- Pinned right after the clipboard icon/spacer group. Doubles as
+                 the emoji panel's back arrow (see KeyboardView.kt
+                 toggleEmojiView) - it never changes position, only its
+                 icon/content-description. -->
             <ImageView
                 android:id="@+id/btn_emoji"
                 style="@style/TopBarIcon"
                 android:src="@drawable/ic_emoji"
                 android:tint="?attr/foreground"/>
+
+            <!-- Visible only while the emoji panel is open: the category tab
+                 strip, moved onto the same line as the fixed back arrow above
+                 instead of its own row inside emoji_layout.xml. Expands (via
+                 top_bar_icon_row switching to width=0dp/weight=1) to fill the
+                 rest of the line; its icons can be long-pressed and dragged to
+                 reorder amongst themselves, while btn_emoji stays put. -->
+            <HorizontalScrollView
+                android:id="@+id/emoji_categories_scroll"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:visibility="gone"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/emoji_categories"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="4dp" />
+
+            </HorizontalScrollView>
 
             <ImageView
                 android:id="@+id/btn_text_select"
